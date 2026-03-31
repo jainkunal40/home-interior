@@ -169,7 +169,7 @@ export function AttachmentsTab({ project }: { project: any }) {
                       </button>
                     )}
                     <a
-                      href={a.fileUrl}
+                      href={`/api/download?id=${a.id}`}
                       download={a.fileName}
                       className="p-1.5 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-brand-50"
                     >
