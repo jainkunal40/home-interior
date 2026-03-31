@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ───────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          String    @default("owner") // owner, admin, manager, accountant, client
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  projects      Project[]
+  activityLogs  ActivityLog[]
+  clientProfile Client?   @relation("ClientUser")
+}
+
+// ─── Clients ────────────────────────────────────────────────
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  gstNumber String?
+  notes     String?
+  userId    String?  @unique
+  user      User?    @relation("ClientUser", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects  Project[]
+}
+
+// ─── Projects ───────────────────────────────────────────────
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  siteAddress String?
+  status      String   @default("planning") // planning, active, on-hold, completed, cancelled
+  budget      Float    @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+
+  incomeTransactions  IncomeTransaction[]
+  expenseTransactions ExpenseTransaction[]
+  laborEntries        LaborEntry[]
+  phases              ProjectPhase[]
+  milestones          Milestone[]
+  attachments         Attachment[]
+  notes               Note[]
+  activityLogs        ActivityLog[]
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([status])
+}
+
+// ─── Vendors ────────────────────────────────────────────────
+
+model Vendor {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  gstNumber String?
+  category  String?  // materials, hardware, furnishing, rental, etc
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses  ExpenseTransaction[]
+}
+
+// ─── Contractors ────────────────────────────────────────────
+
+model Contractor {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  trade     String   // carpenter, electrician, plumber, painter, etc
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  laborEntries LaborEntry[]
+}
+
+// ─── Income Transactions ────────────────────────────────────
+
+model IncomeTransaction {
+  id              String   @id @default(cuid())
+  date            DateTime
+  amount          Float
+  paymentType     String   // advance, milestone_payment, deposit, final_payment, refund, other
+  paymentMode     String   // cash, bank_transfer, upi, cheque, card, other
+  receivedFrom    String?
+  referenceNumber String?
+  notes           String?
+  phaseId         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phase           ProjectPhase? @relation(fields: [phaseId], references: [id])
+  attachments     Attachment[]
+
+  @@index([projectId])
+  @@index([date])
+}
+
+// ─── Expense Transactions ───────────────────────────────────
+
+model ExpenseTransaction {
+  id              String   @id @default(cuid())
+  date            DateTime
+  amount          Float
+  category        String   // materials, subcontractor, transport, labor, site_expense, rental, hardware, furnishing, utility, misc
+  vendorName      String?
+  paymentMode     String   // cash, bank_transfer, upi, cheque, card, other
+  taxAmount       Float    @default(0)
+  gstPercent      Float?
+  billNumber      String?
+  isReimbursable  Boolean  @default(false)
+  notes           String?
+  phaseId         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendorId        String?
+  vendor          Vendor?  @relation(fields: [vendorId], references: [id])
+  laborEntryId    String?
+  laborEntry      LaborEntry? @relation(fields: [laborEntryId], references: [id])
+  phase           ProjectPhase? @relation(fields: [phaseId], references: [id])
+  attachments     Attachment[]
+
+  @@index([projectId])
+  @@index([category])
+  @@index([date])
+  @@index([vendorId])
+  @@index([laborEntryId])
+}
+
+// ─── Labor Entries ──────────────────────────────────────────
+
+model LaborEntry {
+  id            String    @id @default(cuid())
+  tradeType     String    // carpenter, electrician, plumber, painter, false_ceiling, tiles, pop, modular, civil, helper, other
+  rateType      String    // daily, fixed, per_unit, per_sqft, per_item
+  rateAmount    Float
+  quantity      Float     @default(1) // days, units, sqft, items
+  totalAmount   Float     // auto-calculated: rateAmount * quantity (or fixed)
+  advancePaid   Float     @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  status        String    @default("ongoing") // ongoing, completed, pending_payment
+  notes         String?
+  phaseId       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contractorId  String?
+  contractor    Contractor? @relation(fields: [contractorId], references: [id])
+  phase         ProjectPhase? @relation(fields: [phaseId], references: [id])
+  payments      ExpenseTransaction[]
+
+  @@index([projectId])
+  @@index([contractorId])
+}
+
+// ─── Project Phases ─────────────────────────────────────────
+
+model ProjectPhase {
+  id          String   @id @default(cuid())
+  name        String   // design, demolition, civil, electrical, plumbing, carpentry, painting, furnishing, handover
+  budget      Float    @default(0)
+  sortOrder   Int      @default(0)
+  status      String   @default("pending") // pending, in_progress, completed
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  incomeTransactions  IncomeTransaction[]
+  expenseTransactions ExpenseTransaction[]
+  laborEntries        LaborEntry[]
+  milestones          Milestone[]
+
+  @@index([projectId])
+}
+
+// ─── Milestones ─────────────────────────────────────────────
+
+model Milestone {
+  id             String    @id @default(cuid())
+  title          String
+  description    String?
+  dueDate        DateTime?
+  completionDate DateTime?
+  status         String    @default("pending") // pending, in_progress, completed, overdue
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  projectId      String
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phaseId        String?
+  phase          ProjectPhase? @relation(fields: [phaseId], references: [id])
+  attachments    Attachment[]
+  notes          Note[]
+
+  @@index([projectId])
+}
+
+// ─── Attachments ────────────────────────────────────────────
+
+model Attachment {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileUrl     String
+  fileType    String   // image/jpeg, image/png, application/pdf, etc
+  fileSize    Int      // bytes
+  category    String   @default("receipt") // receipt, bill, quotation, invoice, photo, document, other
+  createdAt   DateTime @default(now())
+
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  incomeId    String?
+  income      IncomeTransaction? @relation(fields: [incomeId], references: [id], onDelete: Cascade)
+  expenseId   String?
+  expense     ExpenseTransaction? @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+// ─── Notes ──────────────────────────────────────────────────
+
+model Note {
+  id          String   @id @default(cuid())
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+// ─── Activity Log ───────────────────────────────────────────
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  action      String   // created, updated, deleted, status_changed, payment_received, etc
+  entityType  String   // project, income, expense, labor, milestone, etc
+  entityId    String
+  details     String?  // JSON string with change details
+  createdAt   DateTime @default(now())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([createdAt])
+}
