@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
     if (blobToken) {
       // Production: upload to Vercel Blob
       const blob = await put(`explore-interiors/${Date.now()}-${file.name}`, file, {
-        access: 'public',
         token: blobToken,
       })
       fileUrl = blob.url
