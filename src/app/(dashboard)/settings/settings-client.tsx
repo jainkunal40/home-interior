@@ -73,11 +73,11 @@ export function SettingsClient({ user }: { user: any }) {
       {/* Account Info */}
       <Card>
         <CardHeader>
-          <h2 className="font-semibold text-gray-900">About SiteBooks</h2>
+          <h2 className="font-semibold text-gray-900">About Explore Interiors</h2>
         </CardHeader>
         <CardContent>
           <div className="text-sm text-gray-600 space-y-1">
-            <p>SiteBooks — Finance tracker for interior designers</p>
+            <p>Explore Interiors — Finance tracker for interior designers</p>
             <p>Version 1.0.0</p>
             <p className="text-xs text-gray-400 mt-2">
               All financial data is stored securely. Currency: Indian Rupee (₹)

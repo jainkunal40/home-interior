@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { updateProject } from '@/actions/projects'
-import { Pencil } from 'lucide-react'
+import { updateProject, deleteProject } from '@/actions/projects'
+import { useRouter } from 'next/navigation'
+import { Pencil, Trash2 } from 'lucide-react'
 
 interface OverviewTabProps {
   project: any
@@ -24,6 +25,9 @@ interface OverviewTabProps {
 
 export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit }: OverviewTabProps) {
   const [showEdit, setShowEdit] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const router = useRouter()
   const budgetUsed = totalExpenses + totalLabor
   const budgetPercent = project.budget > 0 ? Math.round((budgetUsed / project.budget) * 100) : 0
   const isOverBudget = budgetUsed > project.budget && project.budget > 0
@@ -151,14 +155,24 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-700">Project Info</h3>
-            <button
-              type="button"
-              onClick={() => setShowEdit(true)}
-              className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 min-h-[44px] px-2"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              Edit
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowEdit(true)}
+                className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 min-h-[44px] px-2"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 min-h-[44px] px-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            </div>
           </div>
           <div className="space-y-2 text-sm">
             {project.client && (
@@ -183,6 +197,38 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
       {/* Edit Project Modal */}
       <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Edit Project">
         <EditProjectForm project={project} onClose={() => setShowEdit(false)} />
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title="Delete Project">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete <span className="font-semibold text-gray-900">{project.name}</span>? This will permanently remove all income, expenses, labor entries, milestones, attachments, and notes associated with this project.
+          </p>
+          <p className="text-sm text-red-600 font-medium">This action cannot be undone.</p>
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={async () => {
+                setIsDeleting(true)
+                await deleteProject(project.id)
+                router.push('/dashboard')
+              }}
+              className="flex-1 bg-red-600 text-white rounded-xl px-4 py-2.5 text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Project'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

@@ -59,7 +59,7 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
 
   function exportCSV() {
     const rows = [
-      ['SiteBooks — Project Report'],
+      ['Explore Interiors — Project Report'],
       ['Project', project.name],
       ['Client', project.client?.name || 'N/A'],
       ['Status', project.status],

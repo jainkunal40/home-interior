@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   if (useCloudStorage) {
     // Production: upload to Vercel Blob
-    const blob = await put(`sitebooks/${Date.now()}-${file.name}`, file, {
+    const blob = await put(`explore-interiors/${Date.now()}-${file.name}`, file, {
       access: 'public',
     })
     fileUrl = blob.url

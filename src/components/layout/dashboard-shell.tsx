@@ -59,7 +59,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           </button>
           <Link href="/dashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-bold">S</div>
-            <span className="font-bold text-gray-900">SiteBooks</span>
+            <span className="font-bold text-gray-900">Explore Interiors</span>
           </Link>
           <div className="w-[44px]" />
         </div>
@@ -125,7 +125,7 @@ function SidebarContent({ pathname, user, onClose }: { pathname: string; user: a
       <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
         <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
           <div className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold">S</div>
-          <span className="text-lg font-bold text-gray-900">SiteBooks</span>
+          <span className="text-lg font-bold text-gray-900">Explore Interiors</span>
         </Link>
         {onClose && (
           <button

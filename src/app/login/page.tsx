@@ -17,7 +17,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-600 text-white text-2xl font-bold mb-3">
             S
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">SiteBooks</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Explore Interiors</h1>
           <p className="text-sm text-gray-500 mt-1">Track your project finances</p>
         </div>
 

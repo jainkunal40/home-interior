@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'SiteBooks — Project Finance Tracker',
+  title: 'Explore Interiors — Project Finance Tracker',
   description: 'Track income, expenses, and profitability across all your interior design projects.',
 }
 

@@ -15,7 +15,7 @@ export default async function ClientLayout({ children }: { children: React.React
         <div className="flex items-center justify-between px-4 h-14 max-w-4xl mx-auto">
           <Link href="/portal" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-bold">S</div>
-            <span className="font-bold text-gray-900">SiteBooks</span>
+            <span className="font-bold text-gray-900">Explore Interiors</span>
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Client</span>
           </Link>
           <form action={signOutAction}>

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Seeding SiteBooks...')
+  console.log('🌱 Seeding Explore Interiors...')
 
   // Clean up
   await prisma.activityLog.deleteMany()
@@ -25,31 +25,31 @@ async function main() {
   const passwordHash = await bcrypt.hash('demo123', 12)
   const user = await prisma.user.create({
     data: {
-      name: 'Priya Sharma',
-      email: 'priya@sitebooks.app',
+      name: 'Ratandeep Bora',
+      email: 'ratandeep@exploreinteriors.app',
       passwordHash,
       role: 'owner',
     },
   })
-  console.log('✅ User: priya@sitebooks.app / demo123')
+  console.log('✅ User: ratandeep@exploreinteriors.app / demo123')
 
   // Create a client login user
   const clientUser = await prisma.user.create({
     data: {
       name: 'Rajesh Patel',
-      email: 'rajesh@email.com',
+      email: 'rajesh@exploreinteriors.app',
       passwordHash,
       role: 'client',
     },
   })
-  console.log('✅ Client user: rajesh@email.com / demo123')
+  console.log('✅ Client user: rajesh@exploreinteriors.app / demo123')
 
   // Create clients
   const client1 = await prisma.client.create({
     data: {
       name: 'Mr. Rajesh Patel',
       phone: '+91 98765 43210',
-      email: 'rajesh.patel@email.com',
+      email: 'rajesh.patel@exploreinteriors.app',
       address: 'A-201, Green Valley Apartments, Baner, Pune',
       userId: clientUser.id,
     },
@@ -58,7 +58,7 @@ async function main() {
     data: {
       name: 'Ms. Ananya Reddy',
       phone: '+91 99887 76655',
-      email: 'ananya.r@email.com',
+      email: 'ananya.r@exploreinteriors.app',
       address: '12, Palm Springs Villa, Whitefield, Bangalore',
     },
   })
@@ -66,6 +66,7 @@ async function main() {
     data: {
       name: 'Dr. Vikram Singh',
       phone: '+91 87654 32109',
+      email: 'vikram.singh@exploreinteriors.app',
       address: '305, Skyline Tower, Noida Sector 62',
     },
   })
@@ -493,7 +494,7 @@ async function main() {
   console.log('✅ Project 3: 2BHK Renovation — Skyline Tower (Planning)')
   console.log('')
   console.log('🎉 Seed complete! Login with:')
-  console.log('   Email: priya@sitebooks.app')
+  console.log('   Email: ratandeep@exploreinteriors.app')
   console.log('   Password: demo123')
 }
 
