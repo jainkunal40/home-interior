@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Wallet, Trash2, Edit2, Link2 } from 'lucide-react'
 import { format } from 'date-fns'
 
-export function ExpensesTab({ project }: { project: any }) {
+export function ExpensesTab({ project, allVendors = [], allContractors = [] }: { project: any; allVendors?: any[]; allContractors?: any[] }) {
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [filterCategory, setFilterCategory] = useState<string>('all')
@@ -165,13 +165,13 @@ export function ExpensesTab({ project }: { project: any }) {
 
       {/* Add/Edit Expense Modal */}
       <Modal open={showForm} onClose={closeForm} title={editItem ? 'Edit Expense' : 'Add Expense'}>
-        <ExpenseForm project={project} editItem={editItem} onClose={closeForm} />
+        <ExpenseForm project={project} editItem={editItem} onClose={closeForm} allVendors={allVendors} allContractors={allContractors} />
       </Modal>
     </div>
   )
 }
 
-function ExpenseForm({ project, editItem, onClose }: { project: any; editItem: any; onClose: () => void }) {
+function ExpenseForm({ project, editItem, onClose, allVendors = [], allContractors = [] }: { project: any; editItem: any; onClose: () => void; allVendors?: any[]; allContractors?: any[] }) {
   const isEdit = !!editItem
   const action = isEdit
     ? updateExpense.bind(null, editItem.id, project.id)
@@ -183,17 +183,17 @@ function ExpenseForm({ project, editItem, onClose }: { project: any; editItem: a
     if (state?.success) onClose()
   }, [state?.success, onClose])
 
-  // Collect unique vendors from all project expenses
-  const vendorMap = new Map<string, { id: string; name: string }>()
-  for (const exp of project.expenseTransactions) {
-    if (exp.vendor?.id) vendorMap.set(exp.vendor.id, exp.vendor)
-  }
-  const vendors = Array.from(vendorMap.values())
+  // Use all vendors from the system
+  const vendors = allVendors
+
+  // Use all contractors from the system for subcontractor/labor categories
+  const contractors = allContractors
 
   // Labor entries for linking payments
   const laborEntries = project.laborEntries || []
 
   const showLaborLink = selectedCategory === 'labor' || selectedCategory === 'subcontractor'
+  const showContractorSelect = selectedCategory === 'subcontractor' || selectedCategory === 'labor'
 
   return (
     <form action={formAction} className="space-y-3">
@@ -211,15 +211,27 @@ function ExpenseForm({ project, editItem, onClose }: { project: any; editItem: a
       />
 
       {/* Vendor selection */}
-      {vendors.length > 0 ? (
+      {!showContractorSelect && vendors.length > 0 ? (
         <Select
           name="vendorId"
           label="Vendor"
-          options={[{ value: '', label: 'Select vendor or type below' }, ...vendors.map(v => ({ value: v.id, label: v.name }))]}
+          options={[{ value: '', label: 'Select vendor or type below' }, ...vendors.map(v => ({ value: v.id, label: `${v.name}${v.category ? ` (${v.category})` : ''}` }))]}
           defaultValue={editItem?.vendorId || ''}
         />
       ) : null}
-      <Input name="vendorName" label={vendors.length > 0 ? 'Or enter vendor name' : 'Vendor Name'} placeholder="e.g., Shree Timber Works" defaultValue={editItem?.vendorName || ''} />
+      {!showContractorSelect && (
+        <Input name="vendorName" label={vendors.length > 0 ? 'Or enter vendor name' : 'Vendor Name'} placeholder="e.g., Shree Timber Works" defaultValue={editItem?.vendorName || ''} />
+      )}
+
+      {/* Contractor selection for subcontractor/labor categories */}
+      {showContractorSelect && contractors.length > 0 && (
+        <Select
+          name="vendorName"
+          label="Contractor / Subcontractor"
+          options={[{ value: '', label: 'Select contractor' }, ...contractors.map(c => ({ value: c.name, label: `${c.name} (${c.trade})` }))]}
+          defaultValue={editItem?.vendorName || ''}
+        />
+      )}
 
       {/* Labor entry link for contractor/labor payments */}
       {showLaborLink && laborEntries.length > 0 && (

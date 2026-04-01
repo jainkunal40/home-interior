@@ -21,7 +21,7 @@ const LABOR_STATUSES = [
   { value: 'pending_payment', label: 'Pending Payment', color: 'bg-orange-100 text-orange-700' },
 ]
 
-export function LaborTab({ project }: { project: any }) {
+export function LaborTab({ project, allContractors = [] }: { project: any; allContractors?: any[] }) {
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
 
@@ -159,32 +159,54 @@ export function LaborTab({ project }: { project: any }) {
 
       {/* Add/Edit Labor Modal */}
       <Modal open={showForm} onClose={closeForm} title={editItem ? 'Edit Labor / Contractor' : 'Add Labor / Contractor'}>
-        <LaborForm project={project} editItem={editItem} onClose={closeForm} />
+        <LaborForm project={project} editItem={editItem} onClose={closeForm} allContractors={allContractors} />
       </Modal>
     </div>
   )
 }
 
-function LaborForm({ project, editItem, onClose }: { project: any; editItem: any; onClose: () => void }) {
+function LaborForm({ project, editItem, onClose, allContractors = [] }: { project: any; editItem: any; onClose: () => void; allContractors?: any[] }) {
   const isEdit = !!editItem
   const action = isEdit
     ? updateLabor.bind(null, editItem.id, project.id)
     : createLabor.bind(null, project.id)
   const [state, formAction, isPending] = useActionState(action, null)
+  const [selectedContractorId, setSelectedContractorId] = useState(editItem?.contractorId || '')
 
   useEffect(() => {
     if (state?.success) onClose()
   }, [state?.success, onClose])
+
+  const selectedContractor = allContractors.find(c => c.id === selectedContractorId)
 
   return (
     <form action={formAction} className="space-y-3">
       {state?.error && (
         <div className="p-2 rounded-lg bg-red-50 text-red-700 text-sm">{state.error}</div>
       )}
-      {isEdit && editItem.contractorId && (
-        <input type="hidden" name="contractorId" value={editItem.contractorId} />
+      {selectedContractorId && (
+        <input type="hidden" name="contractorId" value={selectedContractorId} />
       )}
-      <Input name="contractorName" label="Contractor / Labor Name *" placeholder="e.g., Ramesh (Carpenter)" defaultValue={editItem?.contractor?.name || ''} required />
+      {allContractors.length > 0 && !isEdit && (
+        <Select
+          name="_selectContractor"
+          label="Select Existing Contractor"
+          options={[{ value: '', label: 'Or enter new below' }, ...allContractors.map(c => ({ value: c.id, label: `${c.name} (${c.trade})` }))]}
+          defaultValue={selectedContractorId}
+          onChange={(e) => {
+            const id = e.target.value
+            setSelectedContractorId(id)
+            const c = allContractors.find(x => x.id === id)
+            if (c) {
+              const nameInput = document.querySelector<HTMLInputElement>('input[name="contractorName"]')
+              const tradeSelect = document.querySelector<HTMLSelectElement>('select[name="tradeType"]')
+              if (nameInput) nameInput.value = c.name
+              if (tradeSelect) tradeSelect.value = c.trade
+            }
+          }}
+        />
+      )}
+      <Input name="contractorName" label="Contractor / Labor Name *" placeholder="e.g., Ramesh (Carpenter)" defaultValue={isEdit ? (editItem?.contractor?.name || '') : (selectedContractor?.name || '')} required />
       <Select name="tradeType" label="Trade *" options={[...TRADE_TYPES]} defaultValue={editItem?.tradeType || 'carpenter'} />
       <Select name="rateType" label="Rate Type *" options={[...RATE_TYPES]} defaultValue={editItem?.rateType || 'daily'} />
       <div className="grid grid-cols-2 gap-3">

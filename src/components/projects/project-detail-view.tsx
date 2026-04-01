@@ -104,8 +104,8 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
       <div className="pb-20 sm:pb-4">
         {activeTab === 'overview' && <OverviewTab project={project} totalIncome={totalIncome} totalExpenses={totalExpenses} totalLabor={totalLabor} netProfit={netProfit} allVendors={allVendors} allContractors={allContractors} />}
         {activeTab === 'income' && <IncomeTab project={project} />}
-        {activeTab === 'expenses' && <ExpensesTab project={project} />}
-        {activeTab === 'labor' && <LaborTab project={project} />}
+        {activeTab === 'expenses' && <ExpensesTab project={project} allVendors={allVendors} allContractors={allContractors} />}
+        {activeTab === 'labor' && <LaborTab project={project} allContractors={allContractors} />}
         {activeTab === 'milestones' && <MilestonesTab project={project} />}
         {activeTab === 'attachments' && <AttachmentsTab project={project} />}
         {activeTab === 'notes' && <NotesTab project={project} />}
