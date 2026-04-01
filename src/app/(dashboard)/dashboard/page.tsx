@@ -78,8 +78,8 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="text-xl sm:text-2xl font-bold text-dark-900">Dashboard</h1>
+          <p className="text-sm text-dark-500 mt-0.5">
             {projects.length} project{projects.length !== 1 ? 's' : ''} · {activeCount} active
           </p>
         </div>
@@ -205,20 +205,20 @@ export default async function DashboardPage() {
         />
       ) : (
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Your Projects</h2>
+          <h2 className="text-sm font-semibold text-dark-500 uppercase tracking-wider">Your Projects</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {projectSummaries.map((p: any) => (
               <Link key={p.id} href={`/projects/${p.id}`}>
-                <Card className="hover:shadow-md transition-all hover:border-brand-200">
+                <Card className="hover:shadow-md transition-all hover:border-brand-300">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-gray-900 truncate">{p.name}</h3>
+                        <h3 className="font-semibold text-dark-900 truncate">{p.name}</h3>
                         {p.client && (
-                          <p className="text-sm text-gray-500 truncate">{p.client.name}</p>
+                          <p className="text-sm text-dark-500 truncate">{p.client.name}</p>
                         )}
                         {p.siteAddress && (
-                          <p className="text-xs text-gray-400 truncate mt-0.5">{p.siteAddress}</p>
+                          <p className="text-xs text-dark-400 truncate mt-0.5">{p.siteAddress}</p>
                         )}
                       </div>
                       <Badge className={getStatusColor(p.status)}>
@@ -228,23 +228,23 @@ export default async function DashboardPage() {
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Budget</span>
+                        <span className="text-dark-500">Budget</span>
                         <span className="font-medium tabular-nums">{formatINRCompact(p.budget)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Income</span>
+                        <span className="text-dark-500">Income</span>
                         <span className="font-medium text-green-600 tabular-nums">
                           {formatINRCompact(p.income)}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Expenses</span>
+                        <span className="text-dark-500">Expenses</span>
                         <span className="font-medium text-red-600 tabular-nums">
                           {formatINRCompact(p.expenses)}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Profit</span>
+                        <span className="text-dark-500">Profit</span>
                         <span
                           className={`font-semibold tabular-nums ${p.profit >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}
@@ -254,8 +254,8 @@ export default async function DashboardPage() {
                       </div>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                      <div className="flex gap-3 text-xs text-gray-400">
+                    <div className="mt-3 pt-3 border-t border-dark-100 flex items-center justify-between">
+                      <div className="flex gap-3 text-xs text-dark-400">
                         {p.budget > 0 && (
                           <span>
                             {Math.round(((p.expenses + p.labor) / p.budget) * 100)}% spent
@@ -263,7 +263,7 @@ export default async function DashboardPage() {
                         )}
                         <span>{p._count.milestones} milestones</span>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-gray-300" />
+                      <ArrowRight className="w-4 h-4 text-brand-400" />
                     </div>
                   </CardContent>
                 </Card>

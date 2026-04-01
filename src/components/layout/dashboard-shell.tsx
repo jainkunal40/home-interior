@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -44,22 +45,22 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-dark-50">
       {/* Mobile Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 lg:hidden">
+      <header className="sticky top-0 z-40 bg-dark-900 lg:hidden">
         <div className="flex items-center justify-between px-4 h-14">
           <button
             type="button"
             onClick={openSidebar}
             onTouchEnd={(e) => { e.preventDefault(); openSidebar() }}
-            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="p-2 -ml-2 rounded-lg hover:bg-dark-800 active:bg-dark-700 min-w-[44px] min-h-[44px] flex items-center justify-center text-brand-400"
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
           </button>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-bold">S</div>
-            <span className="font-bold text-gray-900">Explore Interiors</span>
+            <Image src="/logo.jpg" alt="Explore Interiors" width={32} height={32} className="rounded-lg" />
+            <span className="font-bold text-white">Explore Interiors</span>
           </Link>
           <div className="w-[44px]" />
         </div>
@@ -69,18 +70,18 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="fixed inset-0 bg-black/40"
+            className="fixed inset-0 bg-black/60"
             onClick={closeSidebar}
             onTouchEnd={(e) => { e.preventDefault(); closeSidebar() }}
           />
-          <nav className="fixed left-0 top-0 bottom-0 w-72 bg-white shadow-xl animate-slide-in">
+          <nav className="fixed left-0 top-0 bottom-0 w-72 bg-dark-900 shadow-xl animate-slide-in">
             <SidebarContent pathname={pathname} user={user} onClose={closeSidebar} />
           </nav>
         </div>
       )}
 
       {/* Desktop sidebar */}
-      <nav className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col bg-white border-r border-gray-200">
+      <nav className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col bg-dark-900 border-r border-dark-800">
         <SidebarContent pathname={pathname} user={user} />
       </nav>
 
@@ -92,7 +93,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 lg:hidden safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-dark-900 border-t border-dark-800 lg:hidden safe-area-bottom">
         <div className="flex items-center justify-around h-16">
           {bottomNavItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -102,7 +103,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 href={item.href}
                 className={cn(
                   'flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs transition-colors min-w-[56px] min-h-[44px] justify-center',
-                  isActive ? 'text-brand-600' : 'text-gray-500 active:text-gray-700'
+                  isActive ? 'text-brand-400' : 'text-dark-400 active:text-white'
                 )}
               >
                 <item.icon className="w-5 h-5" />
@@ -122,17 +123,17 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 function SidebarContent({ pathname, user, onClose }: { pathname: string; user: any; onClose?: () => void }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100">
+      <div className="flex items-center justify-between px-5 h-16 border-b border-dark-800">
         <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
-          <div className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold">S</div>
-          <span className="text-lg font-bold text-gray-900">Explore Interiors</span>
+          <Image src="/logo.jpg" alt="Explore Interiors" width={36} height={36} className="rounded-xl" />
+          <span className="text-lg font-bold text-white">Explore Interiors</span>
         </Link>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             onTouchEnd={(e) => { e.preventDefault(); onClose() }}
-            className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="p-2 rounded-lg hover:bg-dark-800 active:bg-dark-700 lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center text-dark-400"
             aria-label="Close menu"
           >
             <X className="w-5 h-5" />
@@ -151,7 +152,7 @@ function SidebarContent({ pathname, user, onClose }: { pathname: string; user: a
                   onClick={onClose}
                   className={cn(
                     'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
-                    isActive ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200'
+                    isActive ? 'bg-brand-400/10 text-brand-400 border border-brand-400/20' : 'text-dark-400 hover:bg-dark-800 hover:text-white active:bg-dark-700'
                   )}
                 >
                   <item.icon className="w-5 h-5" />
@@ -163,17 +164,17 @@ function SidebarContent({ pathname, user, onClose }: { pathname: string; user: a
         </ul>
       </div>
 
-      <div className="p-3 border-t border-gray-100">
+      <div className="p-3 border-t border-dark-800">
         <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-sm font-bold">
+          <div className="w-8 h-8 rounded-full bg-brand-400/20 text-brand-400 flex items-center justify-center text-sm font-bold">
             {user?.name?.[0]?.toUpperCase() || 'U'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            <p className="text-sm font-medium text-white truncate">{user?.name}</p>
+            <p className="text-xs text-dark-400 truncate">{user?.email}</p>
           </div>
           <form action={signOutAction}>
-            <button type="submit" className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 min-w-[44px] min-h-[44px] flex items-center justify-center">
+            <button type="submit" className="p-2 rounded-lg hover:bg-dark-800 text-dark-400 hover:text-brand-400 min-w-[44px] min-h-[44px] flex items-center justify-center">
               <LogOut className="w-4 h-4" />
             </button>
           </form>

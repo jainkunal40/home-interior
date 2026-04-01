@@ -50,21 +50,21 @@ export function ProjectDetailView({ project }: { project: any }) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <Link href="/dashboard" className="mt-1 p-1.5 rounded-lg hover:bg-gray-100 shrink-0">
+        <Link href="/dashboard" className="mt-1 p-1.5 rounded-lg hover:bg-dark-100 shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl font-bold text-gray-900 truncate">{project.name}</h1>
+            <h1 className="text-xl font-bold text-dark-900 truncate">{project.name}</h1>
             <Badge className={getStatusColor(project.status)}>
               {getLabelForValue(PROJECT_STATUSES, project.status)}
             </Badge>
           </div>
           {project.client && (
-            <p className="text-sm text-gray-500">{project.client.name}</p>
+            <p className="text-sm text-dark-500">{project.client.name}</p>
           )}
           {project.siteAddress && (
-            <p className="text-xs text-gray-400">{project.siteAddress}</p>
+            <p className="text-xs text-dark-400">{project.siteAddress}</p>
           )}
         </div>
       </div>
@@ -77,23 +77,24 @@ export function ProjectDetailView({ project }: { project: any }) {
         <SummaryCard label="Net Profit" value={netProfit} trend={netProfit >= 0 ? 'up' : 'down'} compact />
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-none">
-        <div className="flex gap-0.5 min-w-max">
+      {/* Tabs - scrollable with better mobile touch */}
+      <div className="border-b border-dark-200 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-0 overflow-x-auto scrollbar-none -mb-px">
           {tabs.map((tab) => (
             <button
               type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[48px]',
+                'flex items-center gap-1.5 px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[48px] min-w-[64px] justify-center shrink-0',
                 activeTab === tab.id
-                  ? 'border-brand-600 text-brand-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 active:text-gray-900'
+                  ? 'border-brand-500 text-brand-600 bg-brand-50/50'
+                  : 'border-transparent text-dark-500 hover:text-dark-700 active:text-dark-900 active:bg-dark-100'
               )}
             >
               <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden text-xs">{tab.label}</span>
             </button>
           ))}
         </div>
