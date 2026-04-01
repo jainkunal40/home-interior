@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { PROJECT_STATUSES } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Eye, EyeOff, Copy, Check, KeyRound } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Copy, Check, KeyRound, MessageCircle, Smartphone } from 'lucide-react'
 import Link from 'next/link'
 import { Modal } from '@/components/ui/modal'
 
@@ -135,15 +135,31 @@ export default function NewProjectPage() {
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={copyCredentials}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
             >
               {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy Credentials'}
+              {copied ? 'Copied!' : 'Copy'}
             </button>
+            <button
+              type="button"
+              onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Your Explore Interiors portal login:\nEmail: ${state?.clientEmail}\nPassword: ${state?.clientPassword}`)}`, '_blank')}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-green-200 rounded-xl hover:bg-green-50 text-green-700 transition-colors"
+            >
+              <MessageCircle className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => window.open(`sms:?body=${encodeURIComponent(`Your Explore Interiors portal login:\nEmail: ${state?.clientEmail}\nPassword: ${state?.clientPassword}`)}`, '_self')}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-blue-200 rounded-xl hover:bg-blue-50 text-blue-700 transition-colors"
+            >
+              <Smartphone className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex gap-3">
             <Button onClick={goToProject} className="flex-1">
               Go to Project
             </Button>

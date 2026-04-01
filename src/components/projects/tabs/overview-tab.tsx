@@ -15,7 +15,15 @@ import { updateProject, deleteProject } from '@/actions/projects'
 import { assignVendorToProject, removeVendorFromProject } from '@/actions/vendors'
 import { assignContractorToProject, removeContractorFromProject } from '@/actions/contractors'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users } from 'lucide-react'
+import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users, MessageCircle, Smartphone } from 'lucide-react'
+
+function shareViaWhatsApp(text: string) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+}
+
+function shareViaSMS(text: string) {
+  window.open(`sms:?body=${encodeURIComponent(text)}`, '_self')
+}
 
 interface OverviewTabProps {
   project: any
@@ -298,15 +306,31 @@ function EditProjectForm({ project, onClose }: { project: any; onClose: () => vo
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={copyCredentials}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
           >
             {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-            {copied ? 'Copied!' : 'Copy Credentials'}
+            {copied ? 'Copied!' : 'Copy'}
           </button>
+          <button
+            type="button"
+            onClick={() => shareViaWhatsApp(`Your Explore Interiors portal login:\nEmail: ${state.clientEmail}\nPassword: ${state.clientPassword}`)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-green-200 rounded-xl hover:bg-green-50 text-green-700 transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => shareViaSMS(`Your Explore Interiors portal login:\nEmail: ${state.clientEmail}\nPassword: ${state.clientPassword}`)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-blue-200 rounded-xl hover:bg-blue-50 text-blue-700 transition-colors"
+          >
+            <Smartphone className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex gap-3">
           <Button onClick={onClose} className="flex-1">
             Done
           </Button>
@@ -412,14 +436,32 @@ function PortalCredentials({ email, password }: { email: string; password: strin
           </div>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={copyCredentials}
-        className="mt-2 flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium min-h-[32px] px-2 -ml-2 rounded-lg hover:bg-brand-100"
-      >
-        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-        {copied ? 'Copied!' : 'Copy credentials to share'}
-      </button>
+      <div className="mt-2 flex items-center gap-1 -ml-2">
+        <button
+          type="button"
+          onClick={copyCredentials}
+          className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium min-h-[32px] px-2 rounded-lg hover:bg-brand-100"
+        >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+        <button
+          type="button"
+          onClick={() => shareViaWhatsApp(`Your Explore Interiors portal login:\nEmail: ${email}\nPassword: ${password}`)}
+          className="flex items-center gap-1.5 text-xs text-green-600 hover:text-green-700 font-medium min-h-[32px] px-2 rounded-lg hover:bg-green-50"
+        >
+          <MessageCircle className="w-3.5 h-3.5" />
+          WhatsApp
+        </button>
+        <button
+          type="button"
+          onClick={() => shareViaSMS(`Your Explore Interiors portal login:\nEmail: ${email}\nPassword: ${password}`)}
+          className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium min-h-[32px] px-2 rounded-lg hover:bg-blue-50"
+        >
+          <Smartphone className="w-3.5 h-3.5" />
+          SMS
+        </button>
+      </div>
     </div>
   )
 }
