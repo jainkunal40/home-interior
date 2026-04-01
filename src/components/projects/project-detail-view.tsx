@@ -42,11 +42,12 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
   const totalIncome = project.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
+  // Exclude labor-linked expenses (they're counted under labor entries)
   const totalExpenses = project.expenseTransactions
-    .filter((t: any) => !t.paidByClient)
+    .filter((t: any) => !t.paidByClient && !t.laborEntryId)
     .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
   const clientPaidExpenses = project.expenseTransactions
-    .filter((t: any) => t.paidByClient)
+    .filter((t: any) => t.paidByClient && !t.laborEntryId)
     .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
   const totalLabor = project.laborEntries
     .filter((t: any) => !t.paidByClient)

@@ -47,10 +47,10 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
   const isOverBudget = budgetUsed > project.budget && project.budget > 0
   const profitMargin = totalIncome > 0 ? Math.round((netProfit / totalIncome) * 100) : 0
 
-  // Category breakdown (exclude client-paid)
+  // Category breakdown (exclude client-paid and labor-linked)
   const categoryBreakdown: Record<string, number> = {}
   for (const exp of project.expenseTransactions) {
-    if (exp.paidByClient) continue
+    if (exp.paidByClient || exp.laborEntryId) continue
     const cat = exp.category || 'misc'
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
   }

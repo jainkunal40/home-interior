@@ -58,11 +58,12 @@ export default async function DashboardPage() {
 
   const projectSummaries = projects.map((p: any) => {
     const income = p.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
+    // Exclude labor-linked expenses (they're counted under labor entries)
     const expenses = p.expenseTransactions
-      .filter((t: any) => !t.paidByClient)
+      .filter((t: any) => !t.paidByClient && !t.laborEntryId)
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
     const clientPaid = p.expenseTransactions
-      .filter((t: any) => t.paidByClient)
+      .filter((t: any) => t.paidByClient && !t.laborEntryId)
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
     const labor = p.laborEntries
       .filter((t: any) => !t.paidByClient)

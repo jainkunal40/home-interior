@@ -53,7 +53,7 @@ export async function getProjects(search?: string, status?: string) {
     include: {
       client: true,
       incomeTransactions: { select: { amount: true } },
-      expenseTransactions: { select: { amount: true, taxAmount: true, paidByClient: true } },
+      expenseTransactions: { select: { amount: true, taxAmount: true, paidByClient: true, laborEntryId: true } },
       laborEntries: { select: { totalAmount: true, paidByClient: true } },
       _count: { select: { milestones: true, attachments: true, notes: true } },
     },
