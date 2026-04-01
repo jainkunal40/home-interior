@@ -250,10 +250,73 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
 function EditProjectForm({ project, onClose }: { project: any; onClose: () => void }) {
   const boundUpdate = updateProject.bind(null, project.id)
   const [state, formAction, isPending] = useActionState(boundUpdate, null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (state?.success) onClose()
-  }, [state?.success, onClose])
+    if (state?.success && !state.clientPassword) onClose()
+  }, [state?.success, state?.clientPassword, onClose])
+
+  function copyCredentials() {
+    if (!state?.clientEmail || !state?.clientPassword) return
+    const text = `Login Email: ${state.clientEmail}\nPassword: ${state.clientPassword}`
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Show credentials screen after save if a new client login was created
+  if (state?.success && state?.clientPassword) {
+    return (
+      <div className="space-y-4">
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm font-semibold text-green-800 mb-1">Project updated!</p>
+          <p className="text-sm text-green-700">
+            A portal login has been created for the client. Share these credentials so they can access their project.
+          </p>
+        </div>
+
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-500">Login Email</span>
+            <span className="text-sm font-medium text-gray-900">{state.clientEmail}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-500">Password</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-mono text-gray-900">
+                {showPassword ? state.clientPassword : '••••••••'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="p-1.5 text-gray-400 hover:text-brand-600 rounded min-w-[32px] min-h-[32px] flex items-center justify-center"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={copyCredentials}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+            {copied ? 'Copied!' : 'Copy Credentials'}
+          </button>
+          <Button onClick={onClose} className="flex-1">
+            Done
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Check if client exists but has no portal login
+  const clientNeedsLogin = project.client && project.client.email && !project.client.userId
 
   return (
     <form action={formAction} className="space-y-3">
@@ -280,6 +343,11 @@ function EditProjectForm({ project, onClose }: { project: any; onClose: () => vo
         <Input label="Client Name" name="clientName" defaultValue={project.client?.name || ''} />
         <Input label="Client Phone" name="clientPhone" defaultValue={project.client?.phone || ''} />
         <Input label="Client Email" name="clientEmail" type="email" defaultValue={project.client?.email || ''} />
+        {clientNeedsLogin && (
+          <p className="text-xs text-orange-600 mt-1">
+            ⚠️ This client has no portal login yet. Save to auto-create one — you&apos;ll see the credentials after saving.
+          </p>
+        )}
       </div>
 
       <Button type="submit" disabled={isPending} className="w-full">
