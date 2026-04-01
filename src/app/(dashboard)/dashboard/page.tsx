@@ -58,7 +58,12 @@ export default async function DashboardPage() {
 
   const projectSummaries = projects.map((p: any) => {
     const income = p.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
-    const expenses = p.expenseTransactions.reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
+    const expenses = p.expenseTransactions
+      .filter((t: any) => !t.paidByClient)
+      .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
+    const clientPaid = p.expenseTransactions
+      .filter((t: any) => t.paidByClient)
+      .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
     const labor = p.laborEntries.reduce((s: number, t: any) => s + t.totalAmount, 0)
     const profit = income - expenses - labor
 
@@ -67,7 +72,7 @@ export default async function DashboardPage() {
     totalLabor += labor
     if (p.status === 'active') activeCount++
 
-    return { ...p, income, expenses, labor, profit }
+    return { ...p, income, expenses, labor, profit, clientPaid }
   })
 
   const totalProfit = totalIncome - totalExpenses - totalLabor

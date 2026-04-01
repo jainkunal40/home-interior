@@ -12,17 +12,19 @@ interface ReportsTabProps {
   totalExpenses: number
   totalLabor: number
   netProfit: number
+  clientPaidExpenses?: number
 }
 
-export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, netProfit }: ReportsTabProps) {
+export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidExpenses = 0 }: ReportsTabProps) {
   const totalCost = totalExpenses + totalLabor
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : '0.0'
   const budgetUsed = project.budget > 0 ? ((totalCost / project.budget) * 100).toFixed(1) : 'N/A'
   const budgetRemaining = project.budget > 0 ? project.budget - totalCost : 0
 
-  // Category breakdown
+  // Category breakdown (exclude client-paid)
   const categoryBreakdown: Record<string, number> = {}
   for (const exp of project.expenseTransactions) {
+    if (exp.paidByClient) continue
     const cat = exp.category || 'misc'
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
   }
@@ -68,6 +70,7 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
       ['Total Income', totalIncome.toString()],
       ['Total Expenses', totalExpenses.toString()],
       ['Total Labor Cost', totalLabor.toString()],
+      ...(clientPaidExpenses > 0 ? [['Client Paid Expenses (excluded from P&L)', clientPaidExpenses.toString()]] : []),
       ['Net Profit/Loss', netProfit.toString()],
       ['Profit Margin', `${profitMargin}%`],
       ['Budget', project.budget.toString()],
@@ -151,6 +154,11 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
               <ReportRow label="Expenses (Materials, Transport, etc.)" value={totalExpenses} color="text-red-600" icon={<TrendingDown className="w-4 h-4" />} indent />
               <ReportRow label="Labor & Contractor Cost" value={totalLabor} color="text-red-600" icon={<TrendingDown className="w-4 h-4" />} indent />
             </div>
+            {clientPaidExpenses > 0 && (
+              <div className="border-t border-gray-100 pt-2">
+                <ReportRow label="Client Paid Expenses (excluded)" value={clientPaidExpenses} color="text-purple-600" icon={<TrendingDown className="w-4 h-4" />} indent />
+              </div>
+            )}
             <div className="border-t-2 border-gray-200 pt-2">
               <ReportRow
                 label="Net Profit / Loss"

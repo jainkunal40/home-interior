@@ -11,6 +11,7 @@ export async function createExpense(projectId: string, _prev: any, formData: For
   const parsed = expenseSchema.safeParse({
     ...raw,
     isReimbursable: raw.isReimbursable === 'true',
+    paidByClient: raw.paidByClient === 'true',
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
@@ -94,6 +95,7 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
   const parsed = expenseSchema.safeParse({
     ...raw,
     isReimbursable: raw.isReimbursable === 'true',
+    paidByClient: raw.paidByClient === 'true',
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 

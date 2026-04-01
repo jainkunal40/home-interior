@@ -48,6 +48,7 @@ export const expenseSchema = z.object({
   gstPercent: z.coerce.number().min(0).max(100).optional(),
   billNumber: z.string().optional(),
   isReimbursable: z.boolean().default(false),
+  paidByClient: z.boolean().default(false),
   notes: z.string().optional(),
   phaseId: z.string().optional(),
 })

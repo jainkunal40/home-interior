@@ -123,6 +123,9 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
                       {t.isReimbursable && (
                         <Badge className="bg-yellow-50 text-yellow-700">Reimbursable</Badge>
                       )}
+                      {t.paidByClient && (
+                        <Badge className="bg-purple-50 text-purple-700">Client Paid</Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 flex-wrap">
                       <span>{format(new Date(t.date), 'dd MMM yyyy')}</span>
@@ -282,6 +285,10 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
       <div className="flex items-center gap-2 py-1">
         <input type="checkbox" name="isReimbursable" value="true" id="isReimbursable" defaultChecked={editItem?.isReimbursable || false} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
         <label htmlFor="isReimbursable" className="text-sm text-gray-700">Mark as reimbursable</label>
+      </div>
+      <div className="flex items-center gap-2 py-1">
+        <input type="checkbox" name="paidByClient" value="true" id="paidByClient" defaultChecked={editItem?.paidByClient || false} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <label htmlFor="paidByClient" className="text-sm text-gray-700">Paid directly by client</label>
       </div>
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onClose} className="flex-1">
