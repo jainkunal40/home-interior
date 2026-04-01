@@ -41,6 +41,8 @@ export default function SignupPage() {
             </Link>
           </p>
         </form>
+
+        <p className="text-center text-xs text-dark-600 mt-6">Designed & Developed by <span className="font-medium text-dark-400">Kunal Jain</span></p>
       </div>
     </div>
   )

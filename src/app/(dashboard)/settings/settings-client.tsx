@@ -83,6 +83,10 @@ export function SettingsClient({ user }: { user: any }) {
               All financial data is stored securely. Currency: Indian Rupee (₹)
             </p>
           </div>
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs text-gray-400">Designed & Developed by</p>
+            <p className="text-sm font-semibold text-gray-700 mt-0.5">Kunal Jain</p>
+          </div>
         </CardContent>
       </Card>
     </div>
