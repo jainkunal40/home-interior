@@ -178,6 +178,10 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
     : createExpense.bind(null, project.id)
   const [state, formAction, isPending] = useActionState(action, null)
   const [selectedCategory, setSelectedCategory] = useState(editItem?.category || 'materials')
+  const [selectedContractorId, setSelectedContractorId] = useState(
+    editItem?.laborEntry?.contractorId ||
+    (editItem?.vendorName ? allContractors.find(c => c.name === editItem.vendorName)?.id : '') || ''
+  )
 
   useEffect(() => {
     if (state?.success) onClose()
@@ -225,12 +229,16 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
 
       {/* Contractor selection for subcontractor/labor categories */}
       {showContractorSelect && contractors.length > 0 && (
-        <Select
-          name="vendorName"
-          label="Contractor / Subcontractor"
-          options={[{ value: '', label: 'Select contractor' }, ...contractors.map(c => ({ value: c.name, label: `${c.name} (${c.trade})` }))]}
-          defaultValue={editItem?.vendorName || ''}
-        />
+        <>
+          <Select
+            name="contractorId"
+            label="Contractor / Subcontractor"
+            options={[{ value: '', label: 'Select contractor' }, ...contractors.map(c => ({ value: c.id, label: `${c.name} (${c.trade})` }))]}
+            defaultValue={selectedContractorId}
+            onChange={(e) => setSelectedContractorId(e.target.value)}
+          />
+          <input type="hidden" name="vendorName" value={contractors.find(c => c.id === selectedContractorId)?.name || ''} />
+        </>
       )}
 
       {/* Labor entry link for contractor/labor payments */}

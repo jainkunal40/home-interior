@@ -17,13 +17,43 @@ export async function createExpense(projectId: string, _prev: any, formData: For
   const project = await prisma.project.findFirst({ where: { id: projectId, userId: session.user.id } })
   if (!project) return { error: 'Project not found' }
 
-  const { date, phaseId, vendorId, laborEntryId, ...rest } = parsed.data
+  const { date, phaseId, vendorId, laborEntryId, contractorId, ...rest } = parsed.data
 
   // If vendorId is provided, auto-fill vendorName from vendor record
   let vendorName = rest.vendorName
   if (vendorId) {
     const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } })
     if (vendor) vendorName = vendor.name
+  }
+
+  // Auto-create or find a LaborEntry when category is labor/subcontractor and contractor is selected
+  let resolvedLaborEntryId = laborEntryId || null
+  const isLaborCategory = rest.category === 'labor' || rest.category === 'subcontractor'
+  if (isLaborCategory && contractorId && !laborEntryId) {
+    // Check if a labor entry already exists for this contractor + project
+    const existingEntry = await prisma.laborEntry.findFirst({
+      where: { contractorId, projectId },
+    })
+    if (existingEntry) {
+      resolvedLaborEntryId = existingEntry.id
+    } else {
+      // Fetch contractor info for the new labor entry
+      const contractor = await prisma.contractor.findUnique({ where: { id: contractorId } })
+      const newEntry = await prisma.laborEntry.create({
+        data: {
+          tradeType: contractor?.trade || 'other',
+          rateType: 'fixed',
+          rateAmount: rest.amount,
+          quantity: 1,
+          totalAmount: rest.amount,
+          advancePaid: 0,
+          status: 'ongoing',
+          contractorId,
+          projectId,
+        },
+      })
+      resolvedLaborEntryId = newEntry.id
+    }
   }
 
   const expense = await prisma.expenseTransaction.create({
@@ -33,14 +63,14 @@ export async function createExpense(projectId: string, _prev: any, formData: For
       date: new Date(date),
       phaseId: phaseId || null,
       vendorId: vendorId || null,
-      laborEntryId: laborEntryId || null,
+      laborEntryId: resolvedLaborEntryId,
       projectId,
     },
   })
 
   // If linked to a labor entry, update the labor entry's advancePaid
-  if (laborEntryId) {
-    await recalcLaborPaid(laborEntryId)
+  if (resolvedLaborEntryId) {
+    await recalcLaborPaid(resolvedLaborEntryId)
   }
 
   await prisma.activityLog.create({
@@ -71,12 +101,40 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
   const oldExpense = await prisma.expenseTransaction.findUnique({ where: { id: expenseId } })
   const oldLaborEntryId = oldExpense?.laborEntryId
 
-  const { date, phaseId, vendorId, laborEntryId, ...rest } = parsed.data
+  const { date, phaseId, vendorId, laborEntryId, contractorId, ...rest } = parsed.data
 
   let vendorName = rest.vendorName
   if (vendorId) {
     const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } })
     if (vendor) vendorName = vendor.name
+  }
+
+  // Auto-create or find a LaborEntry when category is labor/subcontractor and contractor is selected
+  let resolvedLaborEntryId = laborEntryId || null
+  const isLaborCategory = rest.category === 'labor' || rest.category === 'subcontractor'
+  if (isLaborCategory && contractorId && !laborEntryId) {
+    const existingEntry = await prisma.laborEntry.findFirst({
+      where: { contractorId, projectId },
+    })
+    if (existingEntry) {
+      resolvedLaborEntryId = existingEntry.id
+    } else {
+      const contractor = await prisma.contractor.findUnique({ where: { id: contractorId } })
+      const newEntry = await prisma.laborEntry.create({
+        data: {
+          tradeType: contractor?.trade || 'other',
+          rateType: 'fixed',
+          rateAmount: rest.amount,
+          quantity: 1,
+          totalAmount: rest.amount,
+          advancePaid: 0,
+          status: 'ongoing',
+          contractorId,
+          projectId,
+        },
+      })
+      resolvedLaborEntryId = newEntry.id
+    }
   }
 
   await prisma.expenseTransaction.update({
@@ -87,13 +145,13 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
       date: new Date(date),
       phaseId: phaseId || null,
       vendorId: vendorId || null,
-      laborEntryId: laborEntryId || null,
+      laborEntryId: resolvedLaborEntryId,
     },
   })
 
   // Recalc labor paid for both old and new labor entries
   if (oldLaborEntryId) await recalcLaborPaid(oldLaborEntryId)
-  if (laborEntryId && laborEntryId !== oldLaborEntryId) await recalcLaborPaid(laborEntryId)
+  if (resolvedLaborEntryId && resolvedLaborEntryId !== oldLaborEntryId) await recalcLaborPaid(resolvedLaborEntryId)
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }

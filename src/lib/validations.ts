@@ -41,6 +41,7 @@ export const expenseSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   vendorName: z.string().optional(),
   vendorId: z.string().optional(),
+  contractorId: z.string().optional(),
   laborEntryId: z.string().optional(),
   paymentMode: z.string().min(1, 'Payment mode is required'),
   taxAmount: z.coerce.number().min(0).default(0),
