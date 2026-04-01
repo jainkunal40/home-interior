@@ -90,6 +90,9 @@ export function LaborTab({ project, allContractors = [] }: { project: any; allCo
                         <Badge className={statusInfo?.color || 'bg-gray-100 text-gray-700'}>
                           {statusInfo?.label || l.status}
                         </Badge>
+                        {l.paidByClient && (
+                          <Badge className="bg-purple-50 text-purple-700">Client Paid</Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 flex-wrap">
                         <span>{getLabelForValue(TRADE_TYPES, l.tradeType)}</span>
@@ -240,6 +243,10 @@ function LaborForm({ project, editItem, onClose, allContractors = [] }: { projec
         />
       )}
       <Textarea name="notes" label="Notes" placeholder="Optional notes..." defaultValue={editItem?.notes || ''} />
+      <div className="flex items-center gap-2 py-1">
+        <input type="checkbox" name="paidByClient" value="true" id="laborPaidByClient" defaultChecked={editItem?.paidByClient || false} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <label htmlFor="laborPaidByClient" className="text-sm text-gray-700">Paid directly by client</label>
+      </div>
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onClose} className="flex-1">
           Cancel

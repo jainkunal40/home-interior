@@ -8,7 +8,10 @@ import { revalidatePath } from 'next/cache'
 export async function createLabor(projectId: string, _prev: any, formData: FormData) {
   const session = await requireAuth()
   const raw = Object.fromEntries(formData)
-  const parsed = laborSchema.safeParse(raw)
+  const parsed = laborSchema.safeParse({
+    ...raw,
+    paidByClient: raw.paidByClient === 'true',
+  })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const project = await prisma.project.findFirst({ where: { id: projectId, userId: session.user.id } })
@@ -57,7 +60,10 @@ export async function createLabor(projectId: string, _prev: any, formData: FormD
 export async function updateLabor(laborId: string, projectId: string, _prev: any, formData: FormData) {
   await requireAuth()
   const raw = Object.fromEntries(formData)
-  const parsed = laborSchema.safeParse(raw)
+  const parsed = laborSchema.safeParse({
+    ...raw,
+    paidByClient: raw.paidByClient === 'true',
+  })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const { contractorName, startDate, endDate, phaseId, contractorId, ...rest } = parsed.data

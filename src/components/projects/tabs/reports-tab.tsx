@@ -13,9 +13,10 @@ interface ReportsTabProps {
   totalLabor: number
   netProfit: number
   clientPaidExpenses?: number
+  clientPaidLabor?: number
 }
 
-export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidExpenses = 0 }: ReportsTabProps) {
+export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidExpenses = 0, clientPaidLabor = 0 }: ReportsTabProps) {
   const totalCost = totalExpenses + totalLabor
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : '0.0'
   const budgetUsed = project.budget > 0 ? ((totalCost / project.budget) * 100).toFixed(1) : 'N/A'
@@ -30,9 +31,10 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
   }
   const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])
 
-  // Trade breakdown
+  // Trade breakdown (exclude client-paid)
   const tradeBreakdown: Record<string, number> = {}
   for (const l of project.laborEntries) {
+    if (l.paidByClient) continue
     const trade = l.tradeType || 'other'
     tradeBreakdown[trade] = (tradeBreakdown[trade] || 0) + l.totalAmount
   }
@@ -71,6 +73,7 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
       ['Total Expenses', totalExpenses.toString()],
       ['Total Labor Cost', totalLabor.toString()],
       ...(clientPaidExpenses > 0 ? [['Client Paid Expenses (excluded from P&L)', clientPaidExpenses.toString()]] : []),
+      ...(clientPaidLabor > 0 ? [['Client Paid Labor (excluded from P&L)', clientPaidLabor.toString()]] : []),
       ['Net Profit/Loss', netProfit.toString()],
       ['Profit Margin', `${profitMargin}%`],
       ['Budget', project.budget.toString()],
@@ -154,9 +157,9 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
               <ReportRow label="Expenses (Materials, Transport, etc.)" value={totalExpenses} color="text-red-600" icon={<TrendingDown className="w-4 h-4" />} indent />
               <ReportRow label="Labor & Contractor Cost" value={totalLabor} color="text-red-600" icon={<TrendingDown className="w-4 h-4" />} indent />
             </div>
-            {clientPaidExpenses > 0 && (
+            {(clientPaidExpenses + clientPaidLabor) > 0 && (
               <div className="border-t border-gray-100 pt-2">
-                <ReportRow label="Client Paid Expenses (excluded)" value={clientPaidExpenses} color="text-purple-600" icon={<TrendingDown className="w-4 h-4" />} indent />
+                <ReportRow label="Client Paid (excluded from P&L)" value={clientPaidExpenses + clientPaidLabor} color="text-purple-600" icon={<TrendingDown className="w-4 h-4" />} indent />
               </div>
             )}
             <div className="border-t-2 border-gray-200 pt-2">

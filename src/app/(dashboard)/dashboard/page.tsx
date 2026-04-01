@@ -64,7 +64,12 @@ export default async function DashboardPage() {
     const clientPaid = p.expenseTransactions
       .filter((t: any) => t.paidByClient)
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
-    const labor = p.laborEntries.reduce((s: number, t: any) => s + t.totalAmount, 0)
+    const labor = p.laborEntries
+      .filter((t: any) => !t.paidByClient)
+      .reduce((s: number, t: any) => s + t.totalAmount, 0)
+    const clientPaidLabor = p.laborEntries
+      .filter((t: any) => t.paidByClient)
+      .reduce((s: number, t: any) => s + t.totalAmount, 0)
     const profit = income - expenses - labor
 
     totalIncome += income

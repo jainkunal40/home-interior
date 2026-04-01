@@ -63,6 +63,7 @@ export const laborSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   status: z.enum(['ongoing', 'completed', 'pending_payment']).default('ongoing'),
+  paidByClient: z.boolean().default(false),
   notes: z.string().optional(),
   phaseId: z.string().optional(),
   contractorId: z.string().optional(),

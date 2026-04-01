@@ -215,6 +215,7 @@ model LaborEntry {
   startDate     DateTime?
   endDate       DateTime?
   status        String    @default("ongoing") // ongoing, completed, pending_payment
+  paidByClient  Boolean   @default(false)
   notes         String?
   phaseId       String?
   createdAt     DateTime  @default(now())

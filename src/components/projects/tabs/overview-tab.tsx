@@ -32,11 +32,12 @@ interface OverviewTabProps {
   totalLabor: number
   netProfit: number
   clientPaidExpenses?: number
+  clientPaidLabor?: number
   allVendors?: any[]
   allContractors?: any[]
 }
 
-export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidExpenses = 0, allVendors = [], allContractors = [] }: OverviewTabProps) {
+export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidExpenses = 0, clientPaidLabor = 0, allVendors = [], allContractors = [] }: OverviewTabProps) {
   const [showEdit, setShowEdit] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -98,8 +99,8 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
             <SummaryRow label="Total Income" value={totalIncome} color="text-green-600" />
             <SummaryRow label="Total Expenses" value={-totalExpenses} color="text-red-600" />
             <SummaryRow label="Labor Cost" value={-totalLabor} color="text-red-600" />
-            {clientPaidExpenses > 0 && (
-              <SummaryRow label="Client Paid (excluded)" value={clientPaidExpenses} color="text-purple-600" />
+            {(clientPaidExpenses + clientPaidLabor) > 0 && (
+              <SummaryRow label="Client Paid (excluded)" value={clientPaidExpenses + clientPaidLabor} color="text-purple-600" />
             )}
             <div className="border-t border-gray-100 pt-2 mt-2">
               <SummaryRow
