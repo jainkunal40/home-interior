@@ -31,13 +31,12 @@ interface OverviewTabProps {
   totalExpenses: number
   totalLabor: number
   netProfit: number
-  clientPaidExpenses?: number
-  clientPaidLabor?: number
+  clientPaidTotal?: number
   allVendors?: any[]
   allContractors?: any[]
 }
 
-export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidExpenses = 0, clientPaidLabor = 0, allVendors = [], allContractors = [] }: OverviewTabProps) {
+export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidTotal = 0, allVendors = [], allContractors = [] }: OverviewTabProps) {
   const [showEdit, setShowEdit] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -47,10 +46,10 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
   const isOverBudget = budgetUsed > project.budget && project.budget > 0
   const profitMargin = totalIncome > 0 ? Math.round((netProfit / totalIncome) * 100) : 0
 
-  // Category breakdown (exclude client-paid and labor-linked)
+  // Category breakdown (exclude labor-linked to avoid double-counting with labor entries)
   const categoryBreakdown: Record<string, number> = {}
   for (const exp of project.expenseTransactions) {
-    if (exp.paidByClient || exp.laborEntryId) continue
+    if (exp.laborEntryId) continue
     const cat = exp.category || 'misc'
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
   }
@@ -99,8 +98,8 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
             <SummaryRow label="Total Income" value={totalIncome} color="text-green-600" />
             <SummaryRow label="Total Expenses" value={-totalExpenses} color="text-red-600" />
             <SummaryRow label="Labor Cost" value={-totalLabor} color="text-red-600" />
-            {(clientPaidExpenses + clientPaidLabor) > 0 && (
-              <SummaryRow label="Client Paid (excluded)" value={clientPaidExpenses + clientPaidLabor} color="text-purple-600" />
+            {clientPaidTotal > 0 && (
+              <SummaryRow label="Client Paid (excluded from P&L)" value={clientPaidTotal} color="text-purple-600" />
             )}
             <div className="border-t border-gray-100 pt-2 mt-2">
               <SummaryRow

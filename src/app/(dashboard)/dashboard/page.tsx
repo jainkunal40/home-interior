@@ -54,34 +54,38 @@ export default async function DashboardPage() {
   let totalIncome = 0
   let totalExpenses = 0
   let totalLabor = 0
+  let totalOwnerExpenses = 0
+  let totalOwnerLabor = 0
   let activeCount = 0
 
   const projectSummaries = projects.map((p: any) => {
     const income = p.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
-    // Exclude labor-linked expenses (they're counted under labor entries)
+    // All costs (for display, budget) — exclude labor-linked to avoid double-counting
     const expenses = p.expenseTransactions
-      .filter((t: any) => !t.paidByClient && !t.laborEntryId)
-      .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
-    const clientPaid = p.expenseTransactions
-      .filter((t: any) => t.paidByClient && !t.laborEntryId)
+      .filter((t: any) => !t.laborEntryId)
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
     const labor = p.laborEntries
+      .reduce((s: number, t: any) => s + t.totalAmount, 0)
+    // Owner-only for P&L
+    const ownerExpenses = p.expenseTransactions
+      .filter((t: any) => !t.paidByClient && !t.laborEntryId)
+      .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
+    const ownerLabor = p.laborEntries
       .filter((t: any) => !t.paidByClient)
       .reduce((s: number, t: any) => s + t.totalAmount, 0)
-    const clientPaidLabor = p.laborEntries
-      .filter((t: any) => t.paidByClient)
-      .reduce((s: number, t: any) => s + t.totalAmount, 0)
-    const profit = income - expenses - labor
+    const profit = income - ownerExpenses - ownerLabor
 
     totalIncome += income
     totalExpenses += expenses
     totalLabor += labor
+    totalOwnerExpenses += ownerExpenses
+    totalOwnerLabor += ownerLabor
     if (p.status === 'active') activeCount++
 
-    return { ...p, income, expenses, labor, profit, clientPaid }
+    return { ...p, income, expenses, labor, profit }
   })
 
-  const totalProfit = totalIncome - totalExpenses - totalLabor
+  const totalProfit = totalIncome - totalOwnerExpenses - totalOwnerLabor
   const overBudgetProjects = projectSummaries.filter((p: any) => p.budget > 0 && (p.expenses + p.labor) > p.budget)
 
   return (
