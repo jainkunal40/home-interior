@@ -20,7 +20,18 @@ export async function getContractors() {
       laborEntries: {
         select: { id: true, totalAmount: true, advancePaid: true, status: true, project: { select: { name: true } } },
       },
+      projects: {
+        include: { project: { select: { id: true, name: true } } },
+      },
     },
+  })
+}
+
+export async function getAllContractorsSimple() {
+  await requireAuth()
+  return prisma.contractor.findMany({
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true, trade: true },
   })
 }
 
@@ -49,5 +60,25 @@ export async function updateContractor(contractorId: string, _prev: any, formDat
 export async function deleteContractor(contractorId: string) {
   await requireAuth()
   await prisma.contractor.delete({ where: { id: contractorId } })
+  revalidatePath('/contractors')
+}
+
+export async function assignContractorToProject(contractorId: string, projectId: string) {
+  await requireAuth()
+  await prisma.projectContractor.upsert({
+    where: { projectId_contractorId: { projectId, contractorId } },
+    create: { projectId, contractorId },
+    update: {},
+  })
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/contractors')
+}
+
+export async function removeContractorFromProject(contractorId: string, projectId: string) {
+  await requireAuth()
+  await prisma.projectContractor.deleteMany({
+    where: { projectId, contractorId },
+  })
+  revalidatePath(`/projects/${projectId}`)
   revalidatePath('/contractors')
 }

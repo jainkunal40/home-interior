@@ -27,17 +27,18 @@ model User {
 // ─── Clients ────────────────────────────────────────────────
 
 model Client {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
-  address   String?
-  gstNumber String?
-  notes     String?
-  userId    String?  @unique
-  user      User?    @relation("ClientUser", fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  gstNumber      String?
+  notes          String?
+  portalPassword String?
+  userId         String?  @unique
+  user           User?    @relation("ClientUser", fields: [userId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   projects  Project[]
 }
@@ -69,6 +70,8 @@ model Project {
   attachments         Attachment[]
   notes               Note[]
   activityLogs        ActivityLog[]
+  projectVendors      ProjectVendor[]
+  projectContractors  ProjectContractor[]
 
   @@index([userId])
   @@index([clientId])
@@ -90,6 +93,7 @@ model Vendor {
   updatedAt DateTime @updatedAt
 
   expenses  ExpenseTransaction[]
+  projects  ProjectVendor[]
 }
 
 // ─── Contractors ────────────────────────────────────────────
@@ -104,6 +108,39 @@ model Contractor {
   updatedAt DateTime @updatedAt
 
   laborEntries LaborEntry[]
+  projects     ProjectContractor[]
+}
+
+// ─── Project ↔ Vendor (many-to-many) ────────────────────────
+
+model ProjectVendor {
+  id        String   @id @default(cuid())
+  projectId String
+  vendorId  String
+  createdAt DateTime @default(now())
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, vendorId])
+  @@index([projectId])
+  @@index([vendorId])
+}
+
+// ─── Project ↔ Contractor (many-to-many) ────────────────────
+
+model ProjectContractor {
+  id           String   @id @default(cuid())
+  projectId    String
+  contractorId String
+  createdAt    DateTime @default(now())
+
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, contractorId])
+  @@index([projectId])
+  @@index([contractorId])
 }
 
 // ─── Income Transactions ────────────────────────────────────

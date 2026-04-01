@@ -67,6 +67,15 @@ export function VendorsClient({ vendors }: { vendors: any[] }) {
                     </div>
                     {v.gstNumber && <p className="text-xs text-gray-400 mt-1">GST: {v.gstNumber}</p>}
                     {v.notes && <p className="text-xs text-gray-400 mt-1">{v.notes}</p>}
+                    {v.projects?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {v.projects.map((pv: any) => (
+                          <span key={pv.project.id} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-brand-50 text-brand-700 border border-brand-200">
+                            {pv.project.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button type="button" onClick={() => openEdit(v)} className="p-2 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 min-w-[40px] min-h-[40px] flex items-center justify-center">

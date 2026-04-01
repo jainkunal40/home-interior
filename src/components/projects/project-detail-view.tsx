@@ -38,7 +38,7 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]['id']
 
-export function ProjectDetailView({ project }: { project: any }) {
+export function ProjectDetailView({ project, allVendors, allContractors }: { project: any; allVendors?: any[]; allContractors?: any[] }) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
   const totalIncome = project.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
@@ -102,7 +102,7 @@ export function ProjectDetailView({ project }: { project: any }) {
 
       {/* Tab Content */}
       <div className="pb-20 sm:pb-4">
-        {activeTab === 'overview' && <OverviewTab project={project} totalIncome={totalIncome} totalExpenses={totalExpenses} totalLabor={totalLabor} netProfit={netProfit} />}
+        {activeTab === 'overview' && <OverviewTab project={project} totalIncome={totalIncome} totalExpenses={totalExpenses} totalLabor={totalLabor} netProfit={netProfit} allVendors={allVendors} allContractors={allContractors} />}
         {activeTab === 'income' && <IncomeTab project={project} />}
         {activeTab === 'expenses' && <ExpensesTab project={project} />}
         {activeTab === 'labor' && <LaborTab project={project} />}

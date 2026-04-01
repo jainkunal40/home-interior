@@ -12,8 +12,10 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { updateProject, deleteProject } from '@/actions/projects'
+import { assignVendorToProject, removeVendorFromProject } from '@/actions/vendors'
+import { assignContractorToProject, removeContractorFromProject } from '@/actions/contractors'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users } from 'lucide-react'
 
 interface OverviewTabProps {
   project: any
@@ -21,9 +23,11 @@ interface OverviewTabProps {
   totalExpenses: number
   totalLabor: number
   netProfit: number
+  allVendors?: any[]
+  allContractors?: any[]
 }
 
-export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit }: OverviewTabProps) {
+export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, allVendors = [], allContractors = [] }: OverviewTabProps) {
   const [showEdit, setShowEdit] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -150,6 +154,12 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
         </Card>
       )}
 
+      {/* Assigned Vendors */}
+      <AssignedVendorsCard project={project} allVendors={allVendors} />
+
+      {/* Assigned Contractors */}
+      <AssignedContractorsCard project={project} allContractors={allContractors} />
+
       {/* Project Info */}
       <Card>
         <CardContent className="p-4">
@@ -180,6 +190,9 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
                 <InfoRow label="Client" value={project.client.name} />
                 {project.client.phone && <InfoRow label="Phone" value={project.client.phone} />}
                 {project.client.email && <InfoRow label="Email" value={project.client.email} />}
+                {project.client.portalPassword && project.client.email && (
+                  <PortalCredentials email={project.client.email} password={project.client.portalPassword} />
+                )}
               </>
             )}
             {project.siteAddress && <InfoRow label="Location" value={project.siteAddress} />}
@@ -293,5 +306,216 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <span className="text-gray-500 shrink-0">{label}</span>
       <span className="text-gray-900 text-right">{value}</span>
     </div>
+  )
+}
+
+function PortalCredentials({ email, password }: { email: string; password: string }) {
+  const [showPassword, setShowPassword] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  function copyCredentials() {
+    const text = `Login Email: ${email}\nPassword: ${password}`
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="mt-3 p-3 bg-brand-50 border border-brand-200 rounded-lg">
+      <p className="text-xs font-semibold text-brand-700 mb-2">Client Portal Credentials</p>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-500">Login Email</span>
+          <span className="text-gray-900 font-medium">{email}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-gray-500">Password</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-gray-900 font-mono text-sm">
+              {showPassword ? password : '••••••••'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="p-1 text-gray-400 hover:text-brand-600 rounded min-w-[28px] min-h-[28px] flex items-center justify-center"
+            >
+              {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={copyCredentials}
+        className="mt-2 flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium min-h-[32px] px-2 -ml-2 rounded-lg hover:bg-brand-100"
+      >
+        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+        {copied ? 'Copied!' : 'Copy credentials to share'}
+      </button>
+    </div>
+  )
+}
+
+function AssignedVendorsCard({ project, allVendors }: { project: any; allVendors: any[] }) {
+  const [showAdd, setShowAdd] = useState(false)
+  const assignedIds = new Set((project.projectVendors || []).map((pv: any) => pv.vendor.id))
+  const available = allVendors.filter(v => !assignedIds.has(v.id))
+
+  async function handleAssign(vendorId: string) {
+    await assignVendorToProject(vendorId, project.id)
+    setShowAdd(false)
+  }
+
+  async function handleRemove(vendorId: string) {
+    await removeVendorFromProject(vendorId, project.id)
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Store className="w-4 h-4 text-gray-500" />
+            <h3 className="text-sm font-semibold text-gray-700">Assigned Vendors</h3>
+          </div>
+          {available.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAdd(!showAdd)}
+              className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 min-h-[36px] px-2 rounded-lg hover:bg-brand-50"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Assign
+            </button>
+          )}
+        </div>
+
+        {(project.projectVendors || []).length === 0 && !showAdd && (
+          <p className="text-sm text-gray-400">No vendors assigned to this project yet.</p>
+        )}
+
+        {(project.projectVendors || []).length > 0 && (
+          <div className="space-y-2">
+            {project.projectVendors.map((pv: any) => (
+              <div key={pv.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{pv.vendor.name}</p>
+                  {pv.vendor.category && (
+                    <p className="text-xs text-gray-500 capitalize">{pv.vendor.category}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(pv.vendor.id)}
+                  className="p-1.5 text-gray-300 hover:text-red-500 rounded hover:bg-red-50 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showAdd && (
+          <div className="mt-2 p-2 border border-brand-200 rounded-lg bg-brand-50/50">
+            <p className="text-xs font-medium text-gray-600 mb-2">Select vendor to assign:</p>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {available.map(v => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => handleAssign(v.id)}
+                  className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-brand-100 transition-colors min-h-[40px]"
+                >
+                  <span className="font-medium text-gray-900">{v.name}</span>
+                  {v.category && <span className="text-xs text-gray-500 ml-2 capitalize">{v.category}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function AssignedContractorsCard({ project, allContractors }: { project: any; allContractors: any[] }) {
+  const [showAdd, setShowAdd] = useState(false)
+  const assignedIds = new Set((project.projectContractors || []).map((pc: any) => pc.contractor.id))
+  const available = allContractors.filter(c => !assignedIds.has(c.id))
+
+  async function handleAssign(contractorId: string) {
+    await assignContractorToProject(contractorId, project.id)
+    setShowAdd(false)
+  }
+
+  async function handleRemove(contractorId: string) {
+    await removeContractorFromProject(contractorId, project.id)
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-gray-500" />
+            <h3 className="text-sm font-semibold text-gray-700">Assigned Contractors</h3>
+          </div>
+          {available.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAdd(!showAdd)}
+              className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 min-h-[36px] px-2 rounded-lg hover:bg-brand-50"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Assign
+            </button>
+          )}
+        </div>
+
+        {(project.projectContractors || []).length === 0 && !showAdd && (
+          <p className="text-sm text-gray-400">No contractors assigned to this project yet.</p>
+        )}
+
+        {(project.projectContractors || []).length > 0 && (
+          <div className="space-y-2">
+            {project.projectContractors.map((pc: any) => (
+              <div key={pc.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{pc.contractor.name}</p>
+                  <p className="text-xs text-gray-500 capitalize">{pc.contractor.trade}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(pc.contractor.id)}
+                  className="p-1.5 text-gray-300 hover:text-red-500 rounded hover:bg-red-50 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showAdd && (
+          <div className="mt-2 p-2 border border-brand-200 rounded-lg bg-brand-50/50">
+            <p className="text-xs font-medium text-gray-600 mb-2">Select contractor to assign:</p>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {available.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handleAssign(c.id)}
+                  className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-brand-100 transition-colors min-h-[40px]"
+                >
+                  <span className="font-medium text-gray-900">{c.name}</span>
+                  <span className="text-xs text-gray-500 ml-2 capitalize">{c.trade}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

@@ -4,6 +4,37 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/session'
 import { projectSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
+import bcrypt from 'bcryptjs'
+
+function generatePassword(length = 8): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+async function ensureClientUser(clientId: string, email: string, name: string): Promise<{ password?: string }> {
+  const existing = await prisma.client.findUnique({ where: { id: clientId }, include: { user: true } })
+  if (existing?.userId) return {} // already linked
+
+  // Check if a user with this email exists
+  const existingUser = await prisma.user.findUnique({ where: { email } })
+  if (existingUser) {
+    await prisma.client.update({ where: { id: clientId }, data: { userId: existingUser.id } })
+    return {}
+  }
+
+  // Create a new user for the client
+  const password = generatePassword()
+  const passwordHash = await bcrypt.hash(password, 12)
+  const user = await prisma.user.create({
+    data: { name, email, passwordHash, role: 'client' },
+  })
+  await prisma.client.update({ where: { id: clientId }, data: { userId: user.id, portalPassword: password } })
+  return { password }
+}
 
 export async function getProjects(search?: string, status?: string) {
   const session = await requireAuth()
@@ -49,6 +80,8 @@ export async function getProject(id: string) {
       milestones: { orderBy: { dueDate: 'asc' } },
       attachments: { orderBy: { createdAt: 'desc' } },
       notes: { orderBy: { createdAt: 'desc' } },
+      projectVendors: { include: { vendor: true } },
+      projectContractors: { include: { contractor: true } },
     },
   })
 }
@@ -62,11 +95,18 @@ export async function createProject(_prev: any, formData: FormData) {
   const { clientName, clientPhone, clientEmail, startDate, endDate, ...projectData } = parsed.data
 
   let clientId: string | undefined
+  let clientPassword: string | undefined
   if (clientName) {
     const client = await prisma.client.create({
       data: { name: clientName, phone: clientPhone || null, email: clientEmail || null },
     })
     clientId = client.id
+
+    // Auto-create login for client if email is provided
+    if (clientEmail) {
+      const result = await ensureClientUser(client.id, clientEmail, clientName)
+      clientPassword = result.password
+    }
   }
 
   const project = await prisma.project.create({
@@ -104,7 +144,7 @@ export async function createProject(_prev: any, formData: FormData) {
   })
 
   revalidatePath('/dashboard')
-  return { success: true, projectId: project.id }
+  return { success: true, projectId: project.id, clientPassword, clientEmail: clientEmail || undefined }
 }
 
 export async function updateProject(id: string, _prev: any, formData: FormData) {
@@ -118,17 +158,27 @@ export async function updateProject(id: string, _prev: any, formData: FormData) 
   const project = await prisma.project.findFirst({ where: { id, userId: session.user.id }, include: { client: true } })
   if (!project) return { error: 'Project not found' }
 
+  let clientPassword: string | undefined
   if (clientName) {
     if (project.clientId) {
       await prisma.client.update({
         where: { id: project.clientId },
         data: { name: clientName, phone: clientPhone || null, email: clientEmail || null },
       })
+      // Ensure client has a login if email provided
+      if (clientEmail) {
+        const result = await ensureClientUser(project.clientId, clientEmail, clientName)
+        clientPassword = result.password
+      }
     } else {
       const client = await prisma.client.create({
         data: { name: clientName, phone: clientPhone || null, email: clientEmail || null },
       })
       await prisma.project.update({ where: { id }, data: { clientId: client.id } })
+      if (clientEmail) {
+        const result = await ensureClientUser(client.id, clientEmail, clientName)
+        clientPassword = result.password
+      }
     }
   }
 
@@ -143,7 +193,7 @@ export async function updateProject(id: string, _prev: any, formData: FormData) 
 
   revalidatePath(`/projects/${id}`)
   revalidatePath('/dashboard')
-  return { success: true }
+  return { success: true, clientPassword, clientEmail: clientEmail || undefined }
 }
 
 export async function deleteProject(id: string) {

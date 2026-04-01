@@ -9,19 +9,39 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { PROJECT_STATUSES } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowLeft, Eye, EyeOff, Copy, Check, KeyRound } from 'lucide-react'
 import Link from 'next/link'
+import { Modal } from '@/components/ui/modal'
 
 export default function NewProjectPage() {
   const [state, formAction, isPending] = useActionState(createProject, null)
+  const [showCredentials, setShowCredentials] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [copied, setCopied] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     if (state?.success && state.projectId) {
-      router.push(`/projects/${state.projectId}`)
+      if (state.clientPassword) {
+        setShowCredentials(true)
+      } else {
+        router.push(`/projects/${state.projectId}`)
+      }
     }
   }, [state, router])
+
+  function copyCredentials() {
+    if (!state?.clientEmail || !state?.clientPassword) return
+    const text = `Login Email: ${state.clientEmail}\nPassword: ${state.clientPassword}`
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function goToProject() {
+    if (state?.projectId) router.push(`/projects/${state.projectId}`)
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -66,6 +86,7 @@ export default function NewProjectPage() {
               <Input name="clientPhone" label="Phone" type="tel" placeholder="+91 98765 43210" />
               <Input name="clientEmail" label="Email" type="email" placeholder="client@email.com" />
             </div>
+            <p className="text-xs text-gray-400">If email is provided, a client portal login will be auto-created. You&apos;ll see the credentials after project creation.</p>
           </CardContent>
         </Card>
 
@@ -78,6 +99,57 @@ export default function NewProjectPage() {
           </Button>
         </div>
       </form>
+
+      {/* Client credentials modal */}
+      <Modal open={showCredentials} onClose={goToProject} title="Client Portal Credentials">
+        <div className="space-y-4">
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <KeyRound className="w-4 h-4 text-green-600" />
+              <p className="text-sm font-semibold text-green-800">Project created successfully!</p>
+            </div>
+            <p className="text-sm text-green-700">
+              A portal login has been created for the client. Share these credentials so they can access their project portal.
+            </p>
+          </div>
+
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">Login Email</span>
+              <span className="text-sm font-medium text-gray-900">{state?.clientEmail}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500">Password</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-mono text-gray-900">
+                  {showPassword ? state?.clientPassword : '••••••••'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="p-1.5 text-gray-400 hover:text-brand-600 rounded min-w-[32px] min-h-[32px] flex items-center justify-center"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={copyCredentials}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied!' : 'Copy Credentials'}
+            </button>
+            <Button onClick={goToProject} className="flex-1">
+              Go to Project
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -17,7 +17,22 @@ const vendorSchema = z.object({
 
 export async function getVendors() {
   await requireAuth()
-  return prisma.vendor.findMany({ orderBy: { name: 'asc' } })
+  return prisma.vendor.findMany({
+    orderBy: { name: 'asc' },
+    include: {
+      projects: {
+        include: { project: { select: { id: true, name: true } } },
+      },
+    },
+  })
+}
+
+export async function getAllVendorsSimple() {
+  await requireAuth()
+  return prisma.vendor.findMany({
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true, category: true },
+  })
 }
 
 export async function createVendor(_prev: any, formData: FormData) {
@@ -45,5 +60,25 @@ export async function updateVendor(vendorId: string, _prev: any, formData: FormD
 export async function deleteVendor(vendorId: string) {
   await requireAuth()
   await prisma.vendor.delete({ where: { id: vendorId } })
+  revalidatePath('/vendors')
+}
+
+export async function assignVendorToProject(vendorId: string, projectId: string) {
+  await requireAuth()
+  await prisma.projectVendor.upsert({
+    where: { projectId_vendorId: { projectId, vendorId } },
+    create: { projectId, vendorId },
+    update: {},
+  })
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/vendors')
+}
+
+export async function removeVendorFromProject(vendorId: string, projectId: string) {
+  await requireAuth()
+  await prisma.projectVendor.deleteMany({
+    where: { projectId, vendorId },
+  })
+  revalidatePath(`/projects/${projectId}`)
   revalidatePath('/vendors')
 }
