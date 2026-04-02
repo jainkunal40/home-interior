@@ -37,7 +37,7 @@ export default async function ClientPortalPage() {
     include: {
       incomeTransactions: { select: { amount: true } },
       expenseTransactions: { select: { amount: true, taxAmount: true, paidByClient: true, laborEntryId: true } },
-      laborEntries: { select: { totalAmount: true, advancePaid: true, paidByClient: true, payments: { select: { amount: true, taxAmount: true } } } },
+      laborEntries: { select: { advancePaid: true, paidByClient: true } },
       milestones: { select: { status: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -48,17 +48,14 @@ export default async function ClientPortalPage() {
 
   const summaries = projects.map((p) => {
     const income = p.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-    // Client-paid expenses (exclude labor-linked — those are counted under labor)
+    // Client-paid expenses (exclude labor-linked — those are already in advancePaid)
     const clientPaidExpenses = p.expenseTransactions
       .filter(t => t.paidByClient && !t.laborEntryId)
       .reduce((s, t) => s + t.amount + t.taxAmount, 0)
-    // For labor: only count what's actually been paid (advance + linked payments), not full contract
+    // advancePaid is auto-calculated as the sum of linked expense payments
     const clientPaidLabor = p.laborEntries
       .filter(t => t.paidByClient)
-      .reduce((s, entry) => {
-        const payments = entry.payments.reduce((ps, p) => ps + p.amount + p.taxAmount, 0)
-        return s + entry.advancePaid + payments
-      }, 0)
+      .reduce((s, entry) => s + entry.advancePaid, 0)
     const paid = income + clientPaidExpenses + clientPaidLabor
     const completedMilestones = p.milestones.filter(m => m.status === 'completed').length
 

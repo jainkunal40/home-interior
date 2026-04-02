@@ -24,8 +24,12 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     where: { id, clientId: client.id },
     include: {
       incomeTransactions: { orderBy: { date: 'desc' } },
-      expenseTransactions: { where: { paidByClient: true }, select: { amount: true, taxAmount: true, laborEntryId: true } },
-      laborEntries: { where: { paidByClient: true }, select: { totalAmount: true, advancePaid: true, payments: { select: { amount: true, taxAmount: true } } } },
+      expenseTransactions: {
+        where: { paidByClient: true },
+        select: { id: true, amount: true, taxAmount: true, laborEntryId: true, date: true, description: true, category: true, vendor: { select: { name: true } } },
+        orderBy: { date: 'desc' },
+      },
+      laborEntries: { where: { paidByClient: true }, select: { advancePaid: true } },
       milestones: { orderBy: { dueDate: 'asc' } },
       phases: { orderBy: { sortOrder: 'asc' } },
     },
@@ -34,15 +38,12 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
   if (!project) notFound()
 
   const paidToOwner = project.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-  // Client-paid expenses (exclude labor-linked — those are counted under labor)
+  // Client-paid expenses (exclude labor-linked — those are already in advancePaid)
   const clientPaidExpenses = project.expenseTransactions
     .filter(t => !t.laborEntryId)
     .reduce((s, t) => s + t.amount + t.taxAmount, 0)
-  // For labor: only count what's actually been paid (advance + linked payments), not full contract
-  const clientPaidLabor = project.laborEntries.reduce((s, entry) => {
-    const payments = entry.payments.reduce((ps, p) => ps + p.amount + p.taxAmount, 0)
-    return s + entry.advancePaid + payments
-  }, 0)
+  // advancePaid is auto-calculated as the sum of linked expense payments
+  const clientPaidLabor = project.laborEntries.reduce((s, entry) => s + entry.advancePaid, 0)
   const totalPaid = paidToOwner + clientPaidExpenses + clientPaidLabor
   const completedMilestones = project.milestones.filter(m => m.status === 'completed').length
   const remainingBudget = project.budget - totalPaid
@@ -80,21 +81,65 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       <Card>
         <CardContent className="p-4">
           <h2 className="font-semibold text-gray-900 mb-3">Payment History</h2>
-          {project.incomeTransactions.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No payments recorded yet</p>
-          ) : (
-            <div className="space-y-2">
-              {project.incomeTransactions.map((t) => (
-                <div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{t.receivedFrom || t.paymentType || 'Payment'}</p>
-                    <p className="text-xs text-gray-400">{format(new Date(t.date), 'dd MMM yyyy')}</p>
+          {(() => {
+            // Combine all client payments: income (paid to owner) + client-paid expenses
+            const allPayments = [
+              ...project.incomeTransactions.map(t => ({
+                id: t.id,
+                label: t.receivedFrom || t.paymentType || 'Payment to Owner',
+                date: t.date,
+                amount: t.amount,
+                type: 'income' as const,
+              })),
+              ...project.expenseTransactions
+                .filter(t => !t.laborEntryId)
+                .map(t => ({
+                  id: t.id,
+                  label: t.description || t.vendor?.name || t.category || 'Direct Payment',
+                  date: t.date,
+                  amount: t.amount + t.taxAmount,
+                  type: 'expense' as const,
+                })),
+              ...project.expenseTransactions
+                .filter(t => t.laborEntryId)
+                .map(t => ({
+                  id: t.id,
+                  label: t.description || t.vendor?.name || 'Labor Payment',
+                  date: t.date,
+                  amount: t.amount + t.taxAmount,
+                  type: 'labor' as const,
+                })),
+            ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+            if (allPayments.length === 0) {
+              return <p className="text-sm text-gray-400 py-4 text-center">No payments recorded yet</p>
+            }
+
+            return (
+              <div className="space-y-2">
+                {allPayments.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-gray-900">{t.label}</p>
+                        {t.type === 'income' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium">To Owner</span>
+                        )}
+                        {t.type === 'expense' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium">Direct</span>
+                        )}
+                        {t.type === 'labor' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 font-medium">Labor</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400">{format(new Date(t.date), 'dd MMM yyyy')}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-green-600">+{formatINR(t.amount)}</span>
                   </div>
-                  <span className="text-sm font-semibold text-green-600">+{formatINR(t.amount)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )
+          })()}
         </CardContent>
       </Card>
 
