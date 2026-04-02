@@ -37,7 +37,7 @@ export default async function ClientPortalPage() {
     include: {
       incomeTransactions: { select: { amount: true } },
       expenseTransactions: { select: { amount: true, taxAmount: true, paidByClient: true, laborEntryId: true } },
-      laborEntries: { select: { totalAmount: true, paidByClient: true } },
+      laborEntries: { select: { totalAmount: true, advancePaid: true, paidByClient: true, payments: { select: { amount: true, taxAmount: true } } } },
       milestones: { select: { status: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -48,13 +48,17 @@ export default async function ClientPortalPage() {
 
   const summaries = projects.map((p) => {
     const income = p.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-    // Client-paid expenses (exclude labor-linked to avoid double-counting)
+    // Client-paid expenses (exclude labor-linked — those are counted under labor)
     const clientPaidExpenses = p.expenseTransactions
       .filter(t => t.paidByClient && !t.laborEntryId)
       .reduce((s, t) => s + t.amount + t.taxAmount, 0)
+    // For labor: only count what's actually been paid (advance + linked payments), not full contract
     const clientPaidLabor = p.laborEntries
       .filter(t => t.paidByClient)
-      .reduce((s, t) => s + t.totalAmount, 0)
+      .reduce((s, entry) => {
+        const payments = entry.payments.reduce((ps, p) => ps + p.amount + p.taxAmount, 0)
+        return s + entry.advancePaid + payments
+      }, 0)
     const paid = income + clientPaidExpenses + clientPaidLabor
     const completedMilestones = p.milestones.filter(m => m.status === 'completed').length
 
