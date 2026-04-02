@@ -12,10 +12,11 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { updateProject, deleteProject } from '@/actions/projects'
+import { resetClientPassword } from '@/actions/settings'
 import { assignVendorToProject, removeVendorFromProject } from '@/actions/vendors'
 import { assignContractorToProject, removeContractorFromProject } from '@/actions/contractors'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users, MessageCircle, Smartphone } from 'lucide-react'
+import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users, MessageCircle, Smartphone, RotateCcw } from 'lucide-react'
 
 function shareViaWhatsApp(text: string) {
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
@@ -204,7 +205,7 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
                 {project.client.phone && <InfoRow label="Phone" value={project.client.phone} />}
                 {project.client.email && <InfoRow label="Email" value={project.client.email} />}
                 {project.client.portalPassword && project.client.email && (
-                  <PortalCredentials email={project.client.email} password={project.client.portalPassword} />
+                  <PortalCredentials email={project.client.email} password={project.client.portalPassword} clientId={project.client.id} />
                 )}
               </>
             )}
@@ -406,12 +407,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function PortalCredentials({ email, password }: { email: string; password: string }) {
+function PortalCredentials({ email, password, clientId }: { email: string; password: string; clientId: string }) {
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [resetState, resetAction, resetPending] = useActionState(resetClientPassword, null)
+  const displayPassword = resetState?.success ? resetState.newPassword : password
 
   function copyCredentials() {
-    const text = `Login Email: ${email}\nPassword: ${password}`
+    const text = `Login Email: ${email}\nPassword: ${displayPassword}`
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -420,6 +423,9 @@ function PortalCredentials({ email, password }: { email: string; password: strin
   return (
     <div className="mt-3 p-3 bg-brand-50 border border-brand-200 rounded-lg">
       <p className="text-xs font-semibold text-brand-700 mb-2">Client Portal Credentials</p>
+      {resetState?.success && (
+        <div className="p-2 rounded-lg bg-green-50 text-green-700 text-xs mb-2">Password reset successfully</div>
+      )}
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between items-center">
           <span className="text-gray-500">Login Email</span>
@@ -429,7 +435,7 @@ function PortalCredentials({ email, password }: { email: string; password: strin
           <span className="text-gray-500">Password</span>
           <div className="flex items-center gap-1.5">
             <span className="text-gray-900 font-mono text-sm">
-              {showPassword ? password : '••••••••'}
+              {showPassword ? displayPassword : '••••••••'}
             </span>
             <button
               type="button"
@@ -441,7 +447,7 @@ function PortalCredentials({ email, password }: { email: string; password: strin
           </div>
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-1 -ml-2">
+      <div className="mt-2 flex items-center gap-1 -ml-2 flex-wrap">
         <button
           type="button"
           onClick={copyCredentials}
@@ -452,7 +458,7 @@ function PortalCredentials({ email, password }: { email: string; password: strin
         </button>
         <button
           type="button"
-          onClick={() => shareViaWhatsApp(`Your Explore Interiors portal login:\nEmail: ${email}\nPassword: ${password}`)}
+          onClick={() => shareViaWhatsApp(`Your Explore Interiors portal login:\nEmail: ${email}\nPassword: ${displayPassword}`)}
           className="flex items-center gap-1.5 text-xs text-green-600 hover:text-green-700 font-medium min-h-[32px] px-2 rounded-lg hover:bg-green-50"
         >
           <MessageCircle className="w-3.5 h-3.5" />
@@ -460,12 +466,23 @@ function PortalCredentials({ email, password }: { email: string; password: strin
         </button>
         <button
           type="button"
-          onClick={() => shareViaSMS(`Your Explore Interiors portal login:\nEmail: ${email}\nPassword: ${password}`)}
+          onClick={() => shareViaSMS(`Your Explore Interiors portal login:\nEmail: ${email}\nPassword: ${displayPassword}`)}
           className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium min-h-[32px] px-2 rounded-lg hover:bg-blue-50"
         >
           <Smartphone className="w-3.5 h-3.5" />
           SMS
         </button>
+        <form action={resetAction}>
+          <input type="hidden" name="clientId" value={clientId} />
+          <button
+            type="submit"
+            disabled={resetPending}
+            className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-medium min-h-[32px] px-2 rounded-lg hover:bg-red-50"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            {resetPending ? 'Resetting...' : 'Reset Password'}
+          </button>
+        </form>
       </div>
     </div>
   )

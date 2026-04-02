@@ -62,6 +62,30 @@ export async function changePassword(_prev: any, formData: FormData) {
   return { success: true, message: 'Password changed successfully' }
 }
 
+export async function resetClientPassword(_prev: any, formData: FormData) {
+  const session = await requireAuth()
+  // Only owners can reset client passwords
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+  if (!user || user.role === 'client') return { error: 'Unauthorized' }
+
+  const clientId = formData.get('clientId') as string
+  if (!clientId) return { error: 'Client ID is required' }
+
+  const client = await prisma.client.findUnique({ where: { id: clientId }, include: { user: true } })
+  if (!client?.userId) return { error: 'Client has no portal account' }
+
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  let newPassword = ''
+  for (let i = 0; i < 8; i++) newPassword += chars.charAt(Math.floor(Math.random() * chars.length))
+
+  const passwordHash = await bcrypt.hash(newPassword, 12)
+  await prisma.user.update({ where: { id: client.userId }, data: { passwordHash } })
+  await prisma.client.update({ where: { id: clientId }, data: { portalPassword: newPassword } })
+
+  revalidatePath('/projects')
+  return { success: true, newPassword, email: client.email }
+}
+
 export async function getUserProfile() {
   const session = await requireAuth()
   return prisma.user.findUnique({

@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { LogOut } from 'lucide-react'
+import { LogOut, KeyRound } from 'lucide-react'
 import { signOutAction } from '@/actions/sign-out'
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -19,12 +19,18 @@ export default async function ClientLayout({ children }: { children: React.React
             <span className="font-bold text-white">Explore Interiors</span>
             <span className="text-xs text-brand-400 bg-brand-400/10 px-2 py-0.5 rounded-full border border-brand-400/20">Client</span>
           </Link>
-          <form action={signOutAction}>
-            <button type="submit" className="p-2 rounded-lg hover:bg-dark-800 text-dark-400 hover:text-brand-400 flex items-center gap-2 text-sm min-w-[44px] min-h-[44px] justify-center">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
-          </form>
+          <div className="flex items-center gap-1">
+            <Link href="/portal/change-password" className="p-2 rounded-lg hover:bg-dark-800 text-dark-400 hover:text-brand-400 flex items-center gap-2 text-sm min-w-[44px] min-h-[44px] justify-center">
+              <KeyRound className="w-4 h-4" />
+              <span className="hidden sm:inline">Password</span>
+            </Link>
+            <form action={signOutAction}>
+              <button type="submit" className="p-2 rounded-lg hover:bg-dark-800 text-dark-400 hover:text-brand-400 flex items-center gap-2 text-sm min-w-[44px] min-h-[44px] justify-center">
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </form>
+          </div>
         </div>
       </header>
       <main className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
