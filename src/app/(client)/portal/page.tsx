@@ -36,8 +36,8 @@ export default async function ClientPortalPage() {
     where: { clientId: client.id },
     include: {
       incomeTransactions: { select: { amount: true } },
-      expenseTransactions: { select: { amount: true, taxAmount: true } },
-      laborEntries: { select: { totalAmount: true } },
+      expenseTransactions: { select: { amount: true, taxAmount: true, paidByClient: true, laborEntryId: true } },
+      laborEntries: { select: { totalAmount: true, paidByClient: true } },
       milestones: { select: { status: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -48,15 +48,20 @@ export default async function ClientPortalPage() {
 
   const summaries = projects.map((p) => {
     const income = p.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-    const expenses = p.expenseTransactions.reduce((s, t) => s + t.amount + t.taxAmount, 0)
-    const labor = p.laborEntries.reduce((s, t) => s + t.totalAmount, 0)
-    const totalCost = expenses + labor
+    // Client-paid expenses (exclude labor-linked to avoid double-counting)
+    const clientPaidExpenses = p.expenseTransactions
+      .filter(t => t.paidByClient && !t.laborEntryId)
+      .reduce((s, t) => s + t.amount + t.taxAmount, 0)
+    const clientPaidLabor = p.laborEntries
+      .filter(t => t.paidByClient)
+      .reduce((s, t) => s + t.totalAmount, 0)
+    const paid = income + clientPaidExpenses + clientPaidLabor
     const completedMilestones = p.milestones.filter(m => m.status === 'completed').length
 
-    totalPaid += income
+    totalPaid += paid
     totalBudget += p.budget
 
-    return { ...p, income, totalCost, completedMilestones, totalMilestones: p.milestones.length }
+    return { ...p, paid, completedMilestones, totalMilestones: p.milestones.length }
   })
 
   return (
@@ -86,7 +91,7 @@ export default async function ClientPortalPage() {
                     </div>
                     {p.siteAddress && <p className="text-xs text-gray-500 mt-0.5">{p.siteAddress}</p>}
                     <div className="flex items-center gap-4 mt-2 text-sm">
-                      <span className="text-green-600">Paid: {formatINR(p.income)}</span>
+                      <span className="text-green-600">Paid: {formatINR(p.paid)}</span>
                       {p.budget > 0 && <span className="text-gray-500">Budget: {formatINR(p.budget)}</span>}
                     </div>
                     {p.totalMilestones > 0 && (

@@ -24,6 +24,8 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     where: { id, clientId: client.id },
     include: {
       incomeTransactions: { orderBy: { date: 'desc' } },
+      expenseTransactions: { where: { paidByClient: true }, select: { amount: true, taxAmount: true, laborEntryId: true } },
+      laborEntries: { where: { paidByClient: true }, select: { totalAmount: true } },
       milestones: { orderBy: { dueDate: 'asc' } },
       phases: { orderBy: { sortOrder: 'asc' } },
     },
@@ -31,7 +33,13 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
 
   if (!project) notFound()
 
-  const totalPaid = project.incomeTransactions.reduce((s, t) => s + t.amount, 0)
+  const paidToOwner = project.incomeTransactions.reduce((s, t) => s + t.amount, 0)
+  // Client-paid expenses (exclude labor-linked to avoid double-counting)
+  const clientPaidExpenses = project.expenseTransactions
+    .filter(t => !t.laborEntryId)
+    .reduce((s, t) => s + t.amount + t.taxAmount, 0)
+  const clientPaidLabor = project.laborEntries.reduce((s, t) => s + t.totalAmount, 0)
+  const totalPaid = paidToOwner + clientPaidExpenses + clientPaidLabor
   const completedMilestones = project.milestones.filter(m => m.status === 'completed').length
   const remainingBudget = project.budget - totalPaid
 
