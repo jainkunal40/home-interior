@@ -26,7 +26,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       incomeTransactions: { orderBy: { date: 'desc' } },
       expenseTransactions: {
         where: { paidByClient: true },
-        select: { id: true, amount: true, taxAmount: true, laborEntryId: true, date: true, description: true, category: true, vendor: { select: { name: true } } },
+        select: { id: true, amount: true, taxAmount: true, laborEntryId: true, date: true, notes: true, category: true, vendor: { select: { name: true } } },
         orderBy: { date: 'desc' },
       },
       laborEntries: { where: { paidByClient: true }, select: { advancePaid: true } },
@@ -95,7 +95,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
                 .filter(t => !t.laborEntryId)
                 .map(t => ({
                   id: t.id,
-                  label: t.description || t.vendor?.name || t.category || 'Direct Payment',
+                  label: t.notes || t.vendor?.name || t.category || 'Direct Payment',
                   date: t.date,
                   amount: t.amount + t.taxAmount,
                   type: 'expense' as const,
@@ -104,7 +104,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
                 .filter(t => t.laborEntryId)
                 .map(t => ({
                   id: t.id,
-                  label: t.description || t.vendor?.name || 'Labor Payment',
+                  label: t.notes || t.vendor?.name || 'Labor Payment',
                   date: t.date,
                   amount: t.amount + t.taxAmount,
                   type: 'labor' as const,
