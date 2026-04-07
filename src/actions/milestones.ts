@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/session'
 import { milestoneSchema, noteSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
+import { notifyMilestoneCompleted } from '@/lib/whatsapp'
 
 export async function createMilestone(projectId: string, _prev: any, formData: FormData) {
   await requireAuth()
@@ -32,6 +33,9 @@ export async function updateMilestone(milestoneId: string, projectId: string, _p
   const parsed = milestoneSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
+  // Fetch old status to detect completion
+  const oldMilestone = await prisma.milestone.findUnique({ where: { id: milestoneId } })
+
   const { dueDate, completionDate, phaseId, ...rest } = parsed.data
   await prisma.milestone.update({
     where: { id: milestoneId },
@@ -42,6 +46,20 @@ export async function updateMilestone(milestoneId: string, projectId: string, _p
       phaseId: phaseId || null,
     },
   })
+
+  // Notify client if milestone just became completed
+  if (rest.status === 'completed' && oldMilestone?.status !== 'completed') {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { client: true },
+    })
+    if (project?.client?.phone) {
+      await notifyMilestoneCompleted(project.client.phone, {
+        projectName: project.name,
+        milestoneTitle: rest.title,
+      })
+    }
+  }
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }

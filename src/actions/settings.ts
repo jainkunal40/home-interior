@@ -9,6 +9,7 @@ import { z } from 'zod'
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email'),
+  phone: z.string().optional(),
 })
 
 const passwordSchema = z.object({
@@ -34,7 +35,7 @@ export async function updateProfile(_prev: any, formData: FormData) {
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { name: parsed.data.name, email: parsed.data.email },
+    data: { name: parsed.data.name, email: parsed.data.email, phone: parsed.data.phone || null },
   })
 
   revalidatePath('/settings')
@@ -90,6 +91,6 @@ export async function getUserProfile() {
   const session = await requireAuth()
   return prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
   })
 }

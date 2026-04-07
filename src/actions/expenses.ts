@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/session'
 import { expenseSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { notifyExpensePendingApproval, notifyExpenseApprovalStatus } from '@/lib/whatsapp'
 
 export async function createExpense(projectId: string, _prev: any, formData: FormData) {
   const session = await requireAuth()
@@ -251,6 +252,15 @@ export async function submitClientExpense(projectId: string, _prev: any, formDat
     },
   })
 
+  // Notify owner via WhatsApp
+  const owner = await prisma.user.findUnique({ where: { id: project.userId }, select: { phone: true } })
+  await notifyExpensePendingApproval(owner?.phone ?? null, {
+    clientName: client.name,
+    projectName: project.name,
+    amount: rest.amount,
+    category: rest.category,
+  })
+
   revalidatePath(`/portal/${projectId}`)
   return { success: true, message: 'Expense submitted for approval' }
 }
@@ -261,7 +271,7 @@ export async function approveExpense(expenseId: string) {
   const session = await requireAuth()
   const expense = await prisma.expenseTransaction.findUnique({
     where: { id: expenseId },
-    include: { project: true },
+    include: { project: { include: { client: true } } },
   })
   if (!expense || expense.project.userId !== session.user.id) return { error: 'Not found' }
 
@@ -272,6 +282,14 @@ export async function approveExpense(expenseId: string) {
 
   if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
 
+  // Notify client via WhatsApp
+  await notifyExpenseApprovalStatus(expense.project.client?.phone ?? null, {
+    projectName: expense.project.name,
+    amount: expense.amount,
+    category: expense.category,
+    status: 'approved',
+  })
+
   revalidatePath(`/projects/${expense.projectId}`)
   return { success: true }
 }
@@ -280,7 +298,7 @@ export async function rejectExpense(expenseId: string) {
   const session = await requireAuth()
   const expense = await prisma.expenseTransaction.findUnique({
     where: { id: expenseId },
-    include: { project: true },
+    include: { project: { include: { client: true } } },
   })
   if (!expense || expense.project.userId !== session.user.id) return { error: 'Not found' }
 
@@ -290,6 +308,14 @@ export async function rejectExpense(expenseId: string) {
   })
 
   if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
+
+  // Notify client via WhatsApp
+  await notifyExpenseApprovalStatus(expense.project.client?.phone ?? null, {
+    projectName: expense.project.name,
+    amount: expense.amount,
+    category: expense.category,
+    status: 'rejected',
+  })
 
   revalidatePath(`/projects/${expense.projectId}`)
   return { success: true }

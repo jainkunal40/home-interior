@@ -37,6 +37,10 @@ export function SettingsClient({ user }: { user: any }) {
             )}
             <Input name="name" label="Full Name" defaultValue={user.name} required />
             <Input name="email" label="Email" type="email" defaultValue={user.email} required />
+            <Input name="phone" label="WhatsApp Number" type="tel" defaultValue={user.phone || ''} placeholder="e.g. 9876543210" />
+            <p className="text-xs text-gray-400">
+              Used for WhatsApp notifications. Include country code for non-Indian numbers.
+            </p>
             <p className="text-xs text-gray-400">
               Member since {format(new Date(user.createdAt), 'dd MMM yyyy')}
             </p>
