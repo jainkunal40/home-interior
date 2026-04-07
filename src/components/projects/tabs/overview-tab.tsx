@@ -271,6 +271,7 @@ function EditProjectForm({ project, onClose }: { project: any; onClose: () => vo
   const [state, formAction, isPending] = useActionState(boundUpdate, null)
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [clientChannel, setClientChannel] = useState<string>(project.client?.notificationChannel || 'none')
 
   useEffect(() => {
     if (state?.success && !state.clientPassword) onClose()
@@ -378,6 +379,20 @@ function EditProjectForm({ project, onClose }: { project: any; onClose: () => vo
         <Input label="Client Name" name="clientName" defaultValue={project.client?.name || ''} />
         <Input label="Client Phone" name="clientPhone" defaultValue={project.client?.phone || ''} />
         <Input label="Client Email" name="clientEmail" type="email" defaultValue={project.client?.email || ''} />
+        <Select
+          name="clientNotificationChannel"
+          label="Client Notifications"
+          value={clientChannel}
+          onChange={(e) => setClientChannel(e.target.value)}
+          options={[
+            { value: 'none', label: 'Off — No notifications' },
+            { value: 'whatsapp', label: 'WhatsApp (via client phone)' },
+            { value: 'telegram', label: 'Telegram' },
+          ]}
+        />
+        {clientChannel === 'telegram' && (
+          <Input name="clientTelegramChatId" label="Client Telegram Chat ID" defaultValue={project.client?.telegramChatId || ''} placeholder="e.g. 123456789" />
+        )}
         {clientNeedsLogin && (
           <p className="text-xs text-orange-600 mt-1">
             ⚠️ This client has no portal login yet. Save to auto-create one — you&apos;ll see the credentials after saving.

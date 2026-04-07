@@ -22,6 +22,8 @@ export const projectSchema = z.object({
   clientName: z.string().optional(),
   clientPhone: z.string().optional(),
   clientEmail: z.string().email().optional().or(z.literal('')),
+  clientNotificationChannel: z.enum(['none', 'whatsapp', 'telegram']).default('none'),
+  clientTelegramChatId: z.string().optional(),
 })
 
 export const incomeSchema = z.object({

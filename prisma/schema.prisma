@@ -10,15 +10,17 @@ datasource db {
 // ─── Users & Auth ───────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  phone         String?
-  passwordHash  String
-  role          String    @default("owner") // owner, admin, manager, accountant, client
-  avatarUrl     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  phone               String?
+  notificationChannel String    @default("none") // none, whatsapp, telegram
+  telegramChatId      String?
+  passwordHash        String
+  role                String    @default("owner") // owner, admin, manager, accountant, client
+  avatarUrl           String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   projects      Project[]
   activityLogs  ActivityLog[]
@@ -28,18 +30,20 @@ model User {
 // ─── Clients ────────────────────────────────────────────────
 
 model Client {
-  id             String   @id @default(cuid())
-  name           String
-  phone          String?
-  email          String?
-  address        String?
-  gstNumber      String?
-  notes          String?
-  portalPassword String?
-  userId         String?  @unique
-  user           User?    @relation("ClientUser", fields: [userId], references: [id])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  name                String
+  phone               String?
+  email               String?
+  address             String?
+  gstNumber           String?
+  notes               String?
+  portalPassword      String?
+  notificationChannel String   @default("none") // none, whatsapp, telegram
+  telegramChatId      String?
+  userId              String?  @unique
+  user                User?    @relation("ClientUser", fields: [userId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   projects  Project[]
   submittedExpenses ExpenseTransaction[] @relation("ClientExpenses")

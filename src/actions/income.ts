@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/session'
 import { incomeSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
-import { notifyPaymentReceived } from '@/lib/whatsapp'
+import { notifyPaymentReceived } from '@/lib/notifications'
 
 export async function createIncome(projectId: string, _prev: any, formData: FormData) {
   const session = await requireAuth()
@@ -37,12 +37,16 @@ export async function createIncome(projectId: string, _prev: any, formData: Form
     },
   })
 
-  // Notify client via WhatsApp
-  await notifyPaymentReceived(project.client?.phone ?? null, {
-    projectName: project.name,
-    amount: rest.amount,
-    paymentType: rest.paymentType,
-  })
+  // Notify client
+  const client = project.client
+  await notifyPaymentReceived(
+    { channel: (client?.notificationChannel ?? 'none') as any, phone: client?.phone, telegramChatId: client?.telegramChatId },
+    {
+      projectName: project.name,
+      amount: rest.amount,
+      paymentType: rest.paymentType,
+    },
+  )
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }

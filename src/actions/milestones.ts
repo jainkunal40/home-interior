@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/session'
 import { milestoneSchema, noteSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
-import { notifyMilestoneCompleted } from '@/lib/whatsapp'
+import { notifyMilestoneCompleted } from '@/lib/notifications'
 
 export async function createMilestone(projectId: string, _prev: any, formData: FormData) {
   await requireAuth()
@@ -53,11 +53,14 @@ export async function updateMilestone(milestoneId: string, projectId: string, _p
       where: { id: projectId },
       include: { client: true },
     })
-    if (project?.client?.phone) {
-      await notifyMilestoneCompleted(project.client.phone, {
-        projectName: project.name,
-        milestoneTitle: rest.title,
-      })
+    if (project?.client) {
+      await notifyMilestoneCompleted(
+        { channel: (project.client.notificationChannel ?? 'none') as any, phone: project.client.phone, telegramChatId: project.client.telegramChatId },
+        {
+          projectName: project.name,
+          milestoneTitle: rest.title,
+        },
+      )
     }
   }
 

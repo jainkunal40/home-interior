@@ -1,9 +1,10 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useState, useActionState } from 'react'
 import { updateProfile, changePassword } from '@/actions/settings'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
@@ -11,6 +12,7 @@ import { format } from 'date-fns'
 export function SettingsClient({ user }: { user: any }) {
   const [profileState, profileAction, profilePending] = useActionState(updateProfile, null)
   const [passwordState, passwordAction, passwordPending] = useActionState(changePassword, null)
+  const [channel, setChannel] = useState<string>(user.notificationChannel || 'none')
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -37,10 +39,36 @@ export function SettingsClient({ user }: { user: any }) {
             )}
             <Input name="name" label="Full Name" defaultValue={user.name} required />
             <Input name="email" label="Email" type="email" defaultValue={user.email} required />
-            <Input name="phone" label="WhatsApp Number" type="tel" defaultValue={user.phone || ''} placeholder="e.g. 9876543210" />
-            <p className="text-xs text-gray-400">
-              Used for WhatsApp notifications. Include country code for non-Indian numbers.
-            </p>
+
+            <div className="border-t border-gray-100 pt-4 mt-4">
+              <p className="text-xs font-semibold text-gray-500 mb-3">NOTIFICATIONS</p>
+              <Select
+                name="notificationChannel"
+                label="Notification Channel"
+                value={channel}
+                onChange={(e) => setChannel(e.target.value)}
+                options={[
+                  { value: 'none', label: 'Off — No notifications' },
+                  { value: 'whatsapp', label: 'WhatsApp' },
+                  { value: 'telegram', label: 'Telegram' },
+                ]}
+              />
+              {channel === 'whatsapp' && (
+                <div className="mt-3">
+                  <Input name="phone" label="WhatsApp Number" type="tel" defaultValue={user.phone || ''} placeholder="e.g. 9876543210" />
+                  <p className="text-xs text-gray-400 mt-1">Include country code for non-Indian numbers.</p>
+                </div>
+              )}
+              {channel === 'telegram' && (
+                <div className="mt-3">
+                  <Input name="telegramChatId" label="Telegram Chat ID" defaultValue={user.telegramChatId || ''} placeholder="e.g. 123456789" />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Message your bot on Telegram, then visit <span className="font-mono">https://api.telegram.org/bot{'<TOKEN>'}/getUpdates</span> to find your chat ID.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <p className="text-xs text-gray-400">
               Member since {format(new Date(user.createdAt), 'dd MMM yyyy')}
             </p>

@@ -92,13 +92,19 @@ export async function createProject(_prev: any, formData: FormData) {
   const parsed = projectSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { clientName, clientPhone, clientEmail, startDate, endDate, ...projectData } = parsed.data
+  const { clientName, clientPhone, clientEmail, clientNotificationChannel, clientTelegramChatId, startDate, endDate, ...projectData } = parsed.data
 
   let clientId: string | undefined
   let clientPassword: string | undefined
   if (clientName) {
     const client = await prisma.client.create({
-      data: { name: clientName, phone: clientPhone || null, email: clientEmail || null },
+      data: {
+        name: clientName,
+        phone: clientPhone || null,
+        email: clientEmail || null,
+        notificationChannel: clientNotificationChannel || 'none',
+        telegramChatId: clientTelegramChatId || null,
+      },
     })
     clientId = client.id
 
@@ -153,7 +159,7 @@ export async function updateProject(id: string, _prev: any, formData: FormData) 
   const parsed = projectSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { clientName, clientPhone, clientEmail, startDate, endDate, ...projectData } = parsed.data
+  const { clientName, clientPhone, clientEmail, clientNotificationChannel, clientTelegramChatId, startDate, endDate, ...projectData } = parsed.data
 
   const project = await prisma.project.findFirst({ where: { id, userId: session.user.id }, include: { client: true } })
   if (!project) return { error: 'Project not found' }
@@ -163,7 +169,13 @@ export async function updateProject(id: string, _prev: any, formData: FormData) 
     if (project.clientId) {
       await prisma.client.update({
         where: { id: project.clientId },
-        data: { name: clientName, phone: clientPhone || null, email: clientEmail || null },
+        data: {
+          name: clientName,
+          phone: clientPhone || null,
+          email: clientEmail || null,
+          notificationChannel: clientNotificationChannel || 'none',
+          telegramChatId: clientTelegramChatId || null,
+        },
       })
       // Ensure client has a login if email provided
       if (clientEmail) {

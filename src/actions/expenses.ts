@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/session'
 import { expenseSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { notifyExpensePendingApproval, notifyExpenseApprovalStatus } from '@/lib/whatsapp'
+import { notifyExpensePendingApproval, notifyExpenseApprovalStatus } from '@/lib/notifications'
 
 export async function createExpense(projectId: string, _prev: any, formData: FormData) {
   const session = await requireAuth()
@@ -252,14 +252,17 @@ export async function submitClientExpense(projectId: string, _prev: any, formDat
     },
   })
 
-  // Notify owner via WhatsApp
-  const owner = await prisma.user.findUnique({ where: { id: project.userId }, select: { phone: true } })
-  await notifyExpensePendingApproval(owner?.phone ?? null, {
-    clientName: client.name,
-    projectName: project.name,
-    amount: rest.amount,
-    category: rest.category,
-  })
+  // Notify owner
+  const owner = await prisma.user.findUnique({ where: { id: project.userId }, select: { phone: true, notificationChannel: true, telegramChatId: true } })
+  await notifyExpensePendingApproval(
+    { channel: (owner?.notificationChannel ?? 'none') as any, phone: owner?.phone, telegramChatId: owner?.telegramChatId },
+    {
+      clientName: client.name,
+      projectName: project.name,
+      amount: rest.amount,
+      category: rest.category,
+    },
+  )
 
   revalidatePath(`/portal/${projectId}`)
   return { success: true, message: 'Expense submitted for approval' }
@@ -282,13 +285,17 @@ export async function approveExpense(expenseId: string) {
 
   if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
 
-  // Notify client via WhatsApp
-  await notifyExpenseApprovalStatus(expense.project.client?.phone ?? null, {
-    projectName: expense.project.name,
-    amount: expense.amount,
-    category: expense.category,
-    status: 'approved',
-  })
+  // Notify client
+  const client = expense.project.client
+  await notifyExpenseApprovalStatus(
+    { channel: (client?.notificationChannel ?? 'none') as any, phone: client?.phone, telegramChatId: client?.telegramChatId },
+    {
+      projectName: expense.project.name,
+      amount: expense.amount,
+      category: expense.category,
+      status: 'approved',
+    },
+  )
 
   revalidatePath(`/projects/${expense.projectId}`)
   return { success: true }
@@ -309,13 +316,17 @@ export async function rejectExpense(expenseId: string) {
 
   if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
 
-  // Notify client via WhatsApp
-  await notifyExpenseApprovalStatus(expense.project.client?.phone ?? null, {
-    projectName: expense.project.name,
-    amount: expense.amount,
-    category: expense.category,
-    status: 'rejected',
-  })
+  // Notify client
+  const rejClient = expense.project.client
+  await notifyExpenseApprovalStatus(
+    { channel: (rejClient?.notificationChannel ?? 'none') as any, phone: rejClient?.phone, telegramChatId: rejClient?.telegramChatId },
+    {
+      projectName: expense.project.name,
+      amount: expense.amount,
+      category: expense.category,
+      status: 'rejected',
+    },
+  )
 
   revalidatePath(`/projects/${expense.projectId}`)
   return { success: true }
