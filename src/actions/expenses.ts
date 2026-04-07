@@ -70,9 +70,10 @@ export async function createExpense(projectId: string, _prev: any, formData: For
     },
   })
 
-  // If linked to a labor entry, update the labor entry's advancePaid
+  // If linked to a labor entry, update the labor entry's advancePaid and paidByClient
   if (resolvedLaborEntryId) {
     await recalcLaborPaid(resolvedLaborEntryId)
+    await syncLaborPaidByClient(resolvedLaborEntryId)
   }
 
   await prisma.activityLog.create({
@@ -153,8 +154,14 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
   })
 
   // Recalc labor paid for both old and new labor entries
-  if (oldLaborEntryId) await recalcLaborPaid(oldLaborEntryId)
-  if (resolvedLaborEntryId && resolvedLaborEntryId !== oldLaborEntryId) await recalcLaborPaid(resolvedLaborEntryId)
+  if (oldLaborEntryId) {
+    await recalcLaborPaid(oldLaborEntryId)
+    await syncLaborPaidByClient(oldLaborEntryId)
+  }
+  if (resolvedLaborEntryId && resolvedLaborEntryId !== oldLaborEntryId) {
+    await recalcLaborPaid(resolvedLaborEntryId)
+    await syncLaborPaidByClient(resolvedLaborEntryId)
+  }
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
@@ -168,7 +175,10 @@ export async function deleteExpense(expenseId: string, projectId: string) {
   await prisma.expenseTransaction.delete({ where: { id: expenseId } })
 
   // Recalc labor paid if was linked
-  if (laborEntryId) await recalcLaborPaid(laborEntryId)
+  if (laborEntryId) {
+    await recalcLaborPaid(laborEntryId)
+    await syncLaborPaidByClient(laborEntryId)
+  }
 
   revalidatePath(`/projects/${projectId}`)
 }
@@ -183,6 +193,20 @@ async function recalcLaborPaid(laborEntryId: string) {
   await prisma.laborEntry.update({
     where: { id: laborEntryId },
     data: { advancePaid: totalPaid },
+  })
+}
+
+/** Sync paidByClient on labor entry based on its linked expenses */
+async function syncLaborPaidByClient(laborEntryId: string) {
+  const linkedExpenses = await prisma.expenseTransaction.findMany({
+    where: { laborEntryId },
+    select: { paidByClient: true },
+  })
+  // If all linked expenses are paidByClient, mark labor entry as paidByClient too
+  const allClientPaid = linkedExpenses.length > 0 && linkedExpenses.every(e => e.paidByClient)
+  await prisma.laborEntry.update({
+    where: { id: laborEntryId },
+    data: { paidByClient: allClientPaid },
   })
 }
 
