@@ -6,9 +6,10 @@ import { getStatusColor, getLabelForValue, PROJECT_STATUSES, MILESTONE_STATUSES 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { SummaryCard } from '@/components/ui/summary-card'
-import { ArrowLeft, CheckCircle, Clock, IndianRupee, Wallet, Receipt } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Clock, IndianRupee, Wallet, Receipt, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { ClientExpenseForm } from './client-expense-form'
 
 export default async function ClientProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -26,7 +27,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       incomeTransactions: { orderBy: { date: 'desc' } },
       expenseTransactions: {
         where: { paidByClient: true },
-        select: { id: true, amount: true, taxAmount: true, laborEntryId: true, date: true, notes: true, category: true, vendor: { select: { name: true } } },
+        select: { id: true, amount: true, taxAmount: true, laborEntryId: true, date: true, notes: true, category: true, approvalStatus: true, vendor: { select: { name: true } } },
         orderBy: { date: 'desc' },
       },
       laborEntries: { where: { paidByClient: true }, select: { advancePaid: true } },
@@ -37,9 +38,14 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
 
   if (!project) notFound()
 
+  // Only count approved expenses in totals
+  const approvedExpenses = project.expenseTransactions.filter(t => t.approvalStatus === 'approved')
+  const pendingExpenses = project.expenseTransactions.filter(t => t.approvalStatus === 'pending')
+  const pendingTotal = pendingExpenses.reduce((s, t) => s + t.amount + t.taxAmount, 0)
+
   const paidToOwner = project.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-  // Client-paid expenses (exclude labor-linked — those are already in advancePaid)
-  const clientPaidExpenses = project.expenseTransactions
+  // Client-paid expenses (exclude labor-linked — those are already in advancePaid). Only approved.
+  const clientPaidExpenses = approvedExpenses
     .filter(t => !t.laborEntryId)
     .reduce((s, t) => s + t.amount + t.taxAmount, 0)
   // advancePaid is auto-calculated as the sum of linked expense payments
@@ -76,6 +82,57 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
           icon={<CheckCircle className="w-4 h-4" />}
         />
       </div>
+
+      {/* Pending Approval Banner */}
+      {pendingTotal > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-700">Pending Approval</p>
+                  <p className="text-xs text-amber-600">{pendingExpenses.length} expense{pendingExpenses.length !== 1 ? 's' : ''} awaiting owner approval</p>
+                </div>
+              </div>
+              <span className="text-sm font-bold text-amber-700">{formatINR(pendingTotal)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add Expense */}
+      <ClientExpenseForm projectId={project.id} />
+
+      {/* Client Submitted Expenses */}
+      {project.expenseTransactions.some(t => t.approvalStatus === 'pending' || t.approvalStatus === 'rejected') && (
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="font-semibold text-gray-900 mb-3">Your Submitted Expenses</h2>
+            <div className="space-y-2">
+              {project.expenseTransactions
+                .filter(t => t.approvalStatus === 'pending' || t.approvalStatus === 'rejected')
+                .map((t) => (
+                <div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900">{t.notes || t.category || 'Expense'}</p>
+                      {t.approvalStatus === 'pending' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium">Pending</span>
+                      )}
+                      {t.approvalStatus === 'rejected' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-600 font-medium">Rejected</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">{format(new Date(t.date), 'dd MMM yyyy')}</p>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">{formatINR(t.amount + t.taxAmount)}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Payment History */}
       <Card>

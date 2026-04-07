@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useActionState } from 'react'
-import { createExpense, updateExpense, deleteExpense } from '@/actions/expenses'
+import { createExpense, updateExpense, deleteExpense, approveExpense, rejectExpense } from '@/actions/expenses'
 import { formatINR } from '@/lib/currency'
 import { getLabelForValue, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Modal } from '@/components/ui/modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Wallet, Trash2, Edit2, Link2 } from 'lucide-react'
+import { Plus, Wallet, Trash2, Edit2, Link2, CheckCircle, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
 export function ExpensesTab({ project, allVendors = [], allContractors = [] }: { project: any; allVendors?: any[]; allContractors?: any[] }) {
@@ -20,16 +20,21 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
   const [editItem, setEditItem] = useState<any>(null)
   const [filterCategory, setFilterCategory] = useState<string>('all')
 
-  const expenses = filterCategory === 'all'
-    ? project.expenseTransactions
-    : project.expenseTransactions.filter((e: any) => e.category === filterCategory)
+  // Separate approved vs pending expenses
+  const approvedTransactions = project.expenseTransactions.filter((e: any) => e.approvalStatus !== 'pending' && e.approvalStatus !== 'rejected')
+  const pendingTransactions = project.expenseTransactions.filter((e: any) => e.approvalStatus === 'pending')
 
-  const total = project.expenseTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
+  const expenses = filterCategory === 'all'
+    ? approvedTransactions
+    : approvedTransactions.filter((e: any) => e.category === filterCategory)
+
+  const total = approvedTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
+  const pendingTotal = pendingTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
   const filteredTotal = expenses.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
 
-  // Category breakdown
+  // Category breakdown (approved only)
   const categoryBreakdown: Record<string, number> = {}
-  for (const exp of project.expenseTransactions) {
+  for (const exp of approvedTransactions) {
     const cat = exp.category || 'misc'
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
   }
@@ -51,6 +56,49 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
           Add Expense
         </Button>
       </div>
+
+      {/* Pending Approval */}
+      {pendingTransactions.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-amber-700">Pending Approval</h3>
+                <p className="text-xs text-amber-600">{pendingTransactions.length} expense{pendingTransactions.length !== 1 ? 's' : ''} from client · {formatINR(pendingTotal)}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {pendingTransactions.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-amber-100">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-gray-900 tabular-nums text-sm">{formatINR(t.amount + (t.taxAmount || 0))}</span>
+                      <Badge className="bg-amber-50 text-amber-700">{getLabelForValue(EXPENSE_CATEGORIES, t.category)}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                      <span>{format(new Date(t.date), 'dd MMM yyyy')}</span>
+                      {t.vendorName && <><span>·</span><span>{t.vendorName}</span></>}
+                    </div>
+                    {t.notes && <p className="text-xs text-gray-400 mt-0.5">{t.notes}</p>}
+                  </div>
+                  <div className="flex gap-1 shrink-0 ml-2">
+                    <form action={async () => { await approveExpense(t.id) }}>
+                      <button type="submit" className="p-2 text-green-500 hover:text-green-700 rounded-lg hover:bg-green-50 min-w-[40px] min-h-[40px] flex items-center justify-center" title="Approve">
+                        <CheckCircle className="w-5 h-5" />
+                      </button>
+                    </form>
+                    <form action={async () => { await rejectExpense(t.id) }}>
+                      <button type="submit" className="p-2 text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 min-w-[40px] min-h-[40px] flex items-center justify-center" title="Reject">
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Category Breakdown */}
       {sortedCategories.length > 0 && (

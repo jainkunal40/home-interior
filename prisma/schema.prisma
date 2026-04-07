@@ -41,6 +41,7 @@ model Client {
   updatedAt      DateTime @updatedAt
 
   projects  Project[]
+  submittedExpenses ExpenseTransaction[] @relation("ClientExpenses")
 }
 
 // ─── Projects ───────────────────────────────────────────────
@@ -181,6 +182,8 @@ model ExpenseTransaction {
   billNumber      String?
   isReimbursable  Boolean  @default(false)
   paidByClient    Boolean  @default(false)
+  approvalStatus  String   @default("approved") // approved, pending, rejected
+  submittedByClientId String?
   notes           String?
   phaseId         String?
   createdAt       DateTime @default(now())
@@ -193,6 +196,7 @@ model ExpenseTransaction {
   laborEntryId    String?
   laborEntry      LaborEntry? @relation(fields: [laborEntryId], references: [id])
   phase           ProjectPhase? @relation(fields: [phaseId], references: [id])
+  submittedByClient Client? @relation("ClientExpenses", fields: [submittedByClientId], references: [id])
   attachments     Attachment[]
 
   @@index([projectId])
@@ -200,6 +204,7 @@ model ExpenseTransaction {
   @@index([date])
   @@index([vendorId])
   @@index([laborEntryId])
+  @@index([approvalStatus])
 }
 
 // ─── Labor Entries ──────────────────────────────────────────

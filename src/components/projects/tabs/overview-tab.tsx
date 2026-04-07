@@ -33,11 +33,12 @@ interface OverviewTabProps {
   totalLabor: number
   netProfit: number
   clientPaidTotal?: number
+  pendingApprovalTotal?: number
   allVendors?: any[]
   allContractors?: any[]
 }
 
-export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidTotal = 0, allVendors = [], allContractors = [] }: OverviewTabProps) {
+export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidTotal = 0, pendingApprovalTotal = 0, allVendors = [], allContractors = [] }: OverviewTabProps) {
   const [showEdit, setShowEdit] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -47,10 +48,11 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
   const isOverBudget = budgetUsed > project.budget && project.budget > 0
   const profitMargin = totalIncome > 0 ? Math.round((netProfit / totalIncome) * 100) : 0
 
-  // Category breakdown (exclude labor-linked to avoid double-counting with labor entries)
+  // Category breakdown (exclude labor-linked and unapproved)
   const categoryBreakdown: Record<string, number> = {}
   for (const exp of project.expenseTransactions) {
     if (exp.laborEntryId) continue
+    if (exp.approvalStatus === 'pending' || exp.approvalStatus === 'rejected') continue
     const cat = exp.category || 'misc'
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
   }
@@ -101,6 +103,9 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
             <SummaryRow label="Labor Cost" value={-totalLabor} color="text-red-600" />
             {clientPaidTotal > 0 && (
               <SummaryRow label="Client Paid (excluded from P&L)" value={clientPaidTotal} color="text-purple-600" />
+            )}
+            {pendingApprovalTotal > 0 && (
+              <SummaryRow label="Pending Approval" value={pendingApprovalTotal} color="text-amber-600" />
             )}
             <div className="border-t border-gray-100 pt-2 mt-2">
               <SummaryRow

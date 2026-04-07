@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/session'
 import { expenseSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 
 export async function createExpense(projectId: string, _prev: any, formData: FormData) {
   const session = await requireAuth()
@@ -175,7 +176,7 @@ export async function deleteExpense(expenseId: string, projectId: string) {
 /** Recalculate advancePaid on a labor entry from linked expense payments */
 async function recalcLaborPaid(laborEntryId: string) {
   const linkedExpenses = await prisma.expenseTransaction.findMany({
-    where: { laborEntryId },
+    where: { laborEntryId, approvalStatus: 'approved' },
     select: { amount: true },
   })
   const totalPaid = linkedExpenses.reduce((sum, e) => sum + e.amount, 0)
@@ -183,4 +184,89 @@ async function recalcLaborPaid(laborEntryId: string) {
     where: { id: laborEntryId },
     data: { advancePaid: totalPaid },
   })
+}
+
+// ─── Client-submitted expenses ──────────────────────────────
+
+const clientExpenseSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  amount: z.coerce.number().positive('Amount must be positive'),
+  category: z.string().min(1, 'Category is required'),
+  vendorName: z.string().optional(),
+  paymentMode: z.string().min(1, 'Payment mode is required'),
+  taxAmount: z.coerce.number().min(0).default(0),
+  notes: z.string().optional(),
+})
+
+export async function submitClientExpense(projectId: string, _prev: any, formData: FormData) {
+  const { auth } = await import('@/lib/auth')
+  const session = await auth()
+  if (!session?.user?.id) return { error: 'Not authenticated' }
+
+  const client = await prisma.client.findFirst({ where: { userId: session.user.id } })
+  if (!client) return { error: 'Client not found' }
+
+  // Verify client owns this project
+  const project = await prisma.project.findFirst({ where: { id: projectId, clientId: client.id } })
+  if (!project) return { error: 'Project not found' }
+
+  const raw = Object.fromEntries(formData)
+  const parsed = clientExpenseSchema.safeParse(raw)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { date, ...rest } = parsed.data
+
+  await prisma.expenseTransaction.create({
+    data: {
+      ...rest,
+      date: new Date(date),
+      projectId,
+      paidByClient: true,
+      approvalStatus: 'pending',
+      submittedByClientId: client.id,
+    },
+  })
+
+  revalidatePath(`/portal/${projectId}`)
+  return { success: true, message: 'Expense submitted for approval' }
+}
+
+// ─── Owner approval actions ─────────────────────────────────
+
+export async function approveExpense(expenseId: string) {
+  const session = await requireAuth()
+  const expense = await prisma.expenseTransaction.findUnique({
+    where: { id: expenseId },
+    include: { project: true },
+  })
+  if (!expense || expense.project.userId !== session.user.id) return { error: 'Not found' }
+
+  await prisma.expenseTransaction.update({
+    where: { id: expenseId },
+    data: { approvalStatus: 'approved' },
+  })
+
+  if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
+
+  revalidatePath(`/projects/${expense.projectId}`)
+  return { success: true }
+}
+
+export async function rejectExpense(expenseId: string) {
+  const session = await requireAuth()
+  const expense = await prisma.expenseTransaction.findUnique({
+    where: { id: expenseId },
+    include: { project: true },
+  })
+  if (!expense || expense.project.userId !== session.user.id) return { error: 'Not found' }
+
+  await prisma.expenseTransaction.update({
+    where: { id: expenseId },
+    data: { approvalStatus: 'rejected' },
+  })
+
+  if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
+
+  revalidatePath(`/projects/${expense.projectId}`)
+  return { success: true }
 }

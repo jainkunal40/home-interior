@@ -60,14 +60,15 @@ export default async function DashboardPage() {
 
   const projectSummaries = projects.map((p: any) => {
     const income = p.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
-    // All costs (for display, budget) — exclude labor-linked to avoid double-counting
-    const expenses = p.expenseTransactions
+    // Only approved expenses for calculations — exclude labor-linked to avoid double-counting
+    const approved = p.expenseTransactions.filter((t: any) => t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
+    const expenses = approved
       .filter((t: any) => !t.laborEntryId)
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
     const labor = p.laborEntries
       .reduce((s: number, t: any) => s + t.totalAmount, 0)
     // Owner-only for P&L
-    const ownerExpenses = p.expenseTransactions
+    const ownerExpenses = approved
       .filter((t: any) => !t.paidByClient && !t.laborEntryId)
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
     const ownerLabor = p.laborEntries

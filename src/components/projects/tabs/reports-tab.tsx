@@ -13,18 +13,20 @@ interface ReportsTabProps {
   totalLabor: number
   netProfit: number
   clientPaidTotal?: number
+  pendingApprovalTotal?: number
 }
 
-export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidTotal = 0 }: ReportsTabProps) {
+export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidTotal = 0, pendingApprovalTotal = 0 }: ReportsTabProps) {
   const totalCost = totalExpenses + totalLabor
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : '0.0'
   const budgetUsed = project.budget > 0 ? ((totalCost / project.budget) * 100).toFixed(1) : 'N/A'
   const budgetRemaining = project.budget > 0 ? project.budget - totalCost : 0
 
-  // Category breakdown (exclude labor-linked to avoid double-counting)
+  // Category breakdown (exclude labor-linked and unapproved)
   const categoryBreakdown: Record<string, number> = {}
   for (const exp of project.expenseTransactions) {
     if (exp.laborEntryId) continue
+    if (exp.approvalStatus === 'pending' || exp.approvalStatus === 'rejected') continue
     const cat = exp.category || 'misc'
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
   }
@@ -71,6 +73,7 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
       ['Total Expenses', totalExpenses.toString()],
       ['Total Labor Cost', totalLabor.toString()],
       ...(clientPaidTotal > 0 ? [['Client Paid (excluded from P&L)', clientPaidTotal.toString()]] : []),
+      ...(pendingApprovalTotal > 0 ? [['Pending Approval (not included)', pendingApprovalTotal.toString()]] : []),
       ['Net Profit/Loss', netProfit.toString()],
       ['Profit Margin', `${profitMargin}%`],
       ['Budget', project.budget.toString()],
@@ -157,6 +160,11 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
             {clientPaidTotal > 0 && (
               <div className="border-t border-gray-100 pt-2">
                 <ReportRow label="Client Paid (excluded from P&L)" value={clientPaidTotal} color="text-purple-600" icon={<TrendingDown className="w-4 h-4" />} indent />
+              </div>
+            )}
+            {pendingApprovalTotal > 0 && (
+              <div className="border-t border-gray-100 pt-2">
+                <ReportRow label="Pending Approval (not included)" value={pendingApprovalTotal} color="text-amber-600" icon={<AlertTriangle className="w-4 h-4" />} indent />
               </div>
             )}
             <div className="border-t-2 border-gray-200 pt-2">

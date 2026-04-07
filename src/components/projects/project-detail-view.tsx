@@ -42,19 +42,24 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
   const totalIncome = project.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
-  // All costs (for display, budget, breakdowns) — exclude labor-linked to avoid double-counting
-  const totalExpenses = project.expenseTransactions
+  // Only approved expenses for calculations — exclude labor-linked to avoid double-counting
+  const approvedExpenses = project.expenseTransactions.filter((t: any) => t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
+  const totalExpenses = approvedExpenses
     .filter((t: any) => !t.laborEntryId)
     .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
   const totalLabor = project.laborEntries
     .reduce((s: number, t: any) => s + t.totalAmount, 0)
   // Owner-only costs (for P&L)
-  const ownerExpenses = project.expenseTransactions
+  const ownerExpenses = approvedExpenses
     .filter((t: any) => !t.paidByClient && !t.laborEntryId)
     .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
   const ownerLabor = project.laborEntries
     .filter((t: any) => !t.paidByClient)
     .reduce((s: number, t: any) => s + t.totalAmount, 0)
+  // Pending approval total
+  const pendingApprovalTotal = project.expenseTransactions
+    .filter((t: any) => t.approvalStatus === 'pending')
+    .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
   const clientPaidTotal = (totalExpenses - ownerExpenses) + (totalLabor - ownerLabor)
   const netProfit = totalIncome - ownerExpenses - ownerLabor
 
@@ -114,14 +119,14 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
 
       {/* Tab Content */}
       <div className="pb-20 sm:pb-4">
-        {activeTab === 'overview' && <OverviewTab project={project} totalIncome={totalIncome} totalExpenses={totalExpenses} totalLabor={totalLabor} netProfit={netProfit} clientPaidTotal={clientPaidTotal} allVendors={allVendors} allContractors={allContractors} />}
+        {activeTab === 'overview' && <OverviewTab project={project} totalIncome={totalIncome} totalExpenses={totalExpenses} totalLabor={totalLabor} netProfit={netProfit} clientPaidTotal={clientPaidTotal} pendingApprovalTotal={pendingApprovalTotal} allVendors={allVendors} allContractors={allContractors} />}
         {activeTab === 'income' && <IncomeTab project={project} />}
         {activeTab === 'expenses' && <ExpensesTab project={project} allVendors={allVendors} allContractors={allContractors} />}
         {activeTab === 'labor' && <LaborTab project={project} allContractors={allContractors} />}
         {activeTab === 'milestones' && <MilestonesTab project={project} />}
         {activeTab === 'attachments' && <AttachmentsTab project={project} />}
         {activeTab === 'notes' && <NotesTab project={project} />}
-        {activeTab === 'reports' && <ReportsTab project={project} totalIncome={totalIncome} totalExpenses={totalExpenses} totalLabor={totalLabor} netProfit={netProfit} clientPaidTotal={clientPaidTotal} />}
+        {activeTab === 'reports' && <ReportsTab project={project} totalIncome={totalIncome} totalExpenses={totalExpenses} totalLabor={totalLabor} netProfit={netProfit} clientPaidTotal={clientPaidTotal} pendingApprovalTotal={pendingApprovalTotal} />}
       </div>
     </div>
   )
