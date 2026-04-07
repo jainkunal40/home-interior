@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
+import { Check, Copy } from 'lucide-react'
 
 export function SettingsClient({ user }: { user: any }) {
   const [profileState, profileAction, profilePending] = useActionState(updateProfile, null)
@@ -61,10 +62,15 @@ export function SettingsClient({ user }: { user: any }) {
               )}
               {channel === 'telegram' && (
                 <div className="mt-3">
-                  <Input name="telegramChatId" label="Telegram Chat ID" defaultValue={user.telegramChatId || ''} placeholder="e.g. 123456789" />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Message your bot on Telegram, then visit <span className="font-mono">https://api.telegram.org/bot{'<TOKEN>'}/getUpdates</span> to find your chat ID.
-                  </p>
+                  {user.telegramChatId ? (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-700 font-medium">✅ Telegram connected</p>
+                      <p className="text-xs text-green-600 mt-0.5">Chat ID: {user.telegramChatId}</p>
+                      <input type="hidden" name="telegramChatId" value={user.telegramChatId} />
+                    </div>
+                  ) : (
+                    <TelegramConnectButton type="owner" id={user.id} />
+                  )}
                 </div>
               )}
             </div>
@@ -121,6 +127,47 @@ export function SettingsClient({ user }: { user: any }) {
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function TelegramConnectButton({ type, id }: { type: 'owner' | 'client'; id: string }) {
+  const [copied, setCopied] = useState(false)
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
+  if (!botUsername) {
+    return <p className="text-xs text-gray-400">Telegram bot not configured. Set NEXT_PUBLIC_TELEGRAM_BOT_USERNAME in your environment.</p>
+  }
+  const param = type === 'owner' ? `owner_${id}` : `client_${id}`
+  const link = `https://t.me/${botUsername}?start=${param}`
+
+  function copyLink() {
+    navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+      <p className="text-sm text-blue-700 font-medium">Connect Telegram</p>
+      <p className="text-xs text-blue-600">Open this link on your phone to connect:</p>
+      <div className="flex items-center gap-2">
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 text-xs font-mono text-blue-700 bg-white px-2 py-1.5 rounded border border-blue-200 truncate hover:underline"
+        >
+          {link}
+        </a>
+        <button
+          type="button"
+          onClick={copyLink}
+          className="shrink-0 p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded min-w-[32px] min-h-[32px] flex items-center justify-center"
+        >
+          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        </button>
+      </div>
+      <p className="text-xs text-blue-500">Tap Start in Telegram, then refresh this page.</p>
     </div>
   )
 }

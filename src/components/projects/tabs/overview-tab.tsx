@@ -16,7 +16,7 @@ import { resetClientPassword } from '@/actions/settings'
 import { assignVendorToProject, removeVendorFromProject } from '@/actions/vendors'
 import { assignContractorToProject, removeContractorFromProject } from '@/actions/contractors'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users, MessageCircle, Smartphone, RotateCcw } from 'lucide-react'
+import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users, MessageCircle, Smartphone, RotateCcw, Send } from 'lucide-react'
 
 function shareViaWhatsApp(text: string) {
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
@@ -212,6 +212,7 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
                 {project.client.portalPassword && project.client.email && (
                   <PortalCredentials email={project.client.email} password={project.client.portalPassword} clientId={project.client.id} />
                 )}
+                <TelegramConnectCard client={project.client} />
               </>
             )}
             {project.siteAddress && <InfoRow label="Location" value={project.siteAddress} />}
@@ -391,7 +392,16 @@ function EditProjectForm({ project, onClose }: { project: any; onClose: () => vo
           ]}
         />
         {clientChannel === 'telegram' && (
-          <Input name="clientTelegramChatId" label="Client Telegram Chat ID" defaultValue={project.client?.telegramChatId || ''} placeholder="e.g. 123456789" />
+          project.client?.telegramChatId ? (
+            <div className="p-2 bg-green-50 border border-green-200 rounded-lg mt-1">
+              <p className="text-xs text-green-700 font-medium">✅ Client Telegram connected</p>
+              <input type="hidden" name="clientTelegramChatId" value={project.client.telegramChatId} />
+            </div>
+          ) : (
+            <p className="text-xs text-blue-600 mt-1">
+              Save with Telegram selected, then use the Connect Telegram link on the project page to link the client.
+            </p>
+          )
         )}
         {clientNeedsLogin && (
           <p className="text-xs text-orange-600 mt-1">
@@ -503,6 +513,75 @@ function PortalCredentials({ email, password, clientId }: { email: string; passw
             {resetPending ? 'Resetting...' : 'Reset Password'}
           </button>
         </form>
+      </div>
+    </div>
+  )
+}
+
+function TelegramConnectCard({ client }: { client: any }) {
+  const [copied, setCopied] = useState(false)
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
+
+  // Don't show if notification channel isn't telegram, or bot not configured
+  if (client.notificationChannel !== 'telegram' || !botUsername) return null
+
+  // Already connected
+  if (client.telegramChatId) {
+    return (
+      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center gap-2">
+          <Send className="w-3.5 h-3.5 text-blue-600" />
+          <p className="text-xs font-semibold text-blue-700">Telegram Connected</p>
+        </div>
+        <p className="text-xs text-blue-600 mt-0.5">Client will receive notifications via Telegram.</p>
+      </div>
+    )
+  }
+
+  const link = `https://t.me/${botUsername}?start=client_${client.id}`
+
+  function copyLink() {
+    navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+      <div className="flex items-center gap-2">
+        <Send className="w-3.5 h-3.5 text-blue-600" />
+        <p className="text-xs font-semibold text-blue-700">Connect Client Telegram</p>
+      </div>
+      <p className="text-xs text-blue-600">Share this link with the client to connect notifications:</p>
+      <div className="flex items-center gap-2">
+        <span className="flex-1 text-xs font-mono text-blue-700 bg-white px-2 py-1.5 rounded border border-blue-200 truncate">
+          {link}
+        </span>
+        <button
+          type="button"
+          onClick={copyLink}
+          className="shrink-0 p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded min-w-[28px] min-h-[28px] flex items-center justify-center"
+        >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+      <div className="flex gap-1 -ml-1">
+        <button
+          type="button"
+          onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Connect to Explore Interiors notifications on Telegram:\n${link}`)}`, '_blank')}
+          className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium min-h-[28px] px-1.5 rounded hover:bg-green-50"
+        >
+          <MessageCircle className="w-3 h-3" />
+          WhatsApp
+        </button>
+        <button
+          type="button"
+          onClick={() => window.open(`sms:?body=${encodeURIComponent(`Connect to Explore Interiors notifications on Telegram: ${link}`)}`, '_self')}
+          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium min-h-[28px] px-1.5 rounded hover:bg-blue-100"
+        >
+          <Smartphone className="w-3 h-3" />
+          SMS
+        </button>
       </div>
     </div>
   )
