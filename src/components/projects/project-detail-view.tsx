@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { cn, getStatusColor, getLabelForValue, PROJECT_STATUSES } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { SummaryCard } from '@/components/ui/summary-card'
@@ -39,7 +40,17 @@ const tabs = [
 type TabId = (typeof tabs)[number]['id']
 
 export function ProjectDetailView({ project, allVendors, allContractors }: { project: any; allVendors?: any[]; allContractors?: any[] }) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview')
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const validTabs = tabs.map(t => t.id) as string[]
+  const initialTab = (tabParam && validTabs.includes(tabParam) ? tabParam : 'overview') as TabId
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
+
+  useEffect(() => {
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTab(tabParam as TabId)
+    }
+  }, [tabParam])
 
   const totalIncome = project.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
   // Only approved expenses for calculations — exclude labor-linked to avoid double-counting

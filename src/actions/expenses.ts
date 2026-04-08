@@ -218,6 +218,8 @@ const clientExpenseSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),
   category: z.string().min(1, 'Category is required'),
   vendorName: z.string().optional(),
+  vendorId: z.string().optional(),
+  contractorId: z.string().optional(),
   paymentMode: z.string().min(1, 'Payment mode is required'),
   taxAmount: z.coerce.number().min(0).default(0),
   notes: z.string().optional(),
@@ -239,7 +241,7 @@ export async function submitClientExpense(projectId: string, _prev: any, formDat
   const parsed = clientExpenseSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { date, ...rest } = parsed.data
+  const { date, vendorId, contractorId, ...rest } = parsed.data
 
   await prisma.expenseTransaction.create({
     data: {
@@ -249,6 +251,7 @@ export async function submitClientExpense(projectId: string, _prev: any, formDat
       paidByClient: true,
       approvalStatus: 'pending',
       submittedByClientId: client.id,
+      ...(vendorId ? { vendorId } : {}),
     },
   })
 

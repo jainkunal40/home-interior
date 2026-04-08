@@ -33,6 +33,8 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       laborEntries: { where: { paidByClient: true }, select: { advancePaid: true } },
       milestones: { orderBy: { dueDate: 'asc' } },
       phases: { orderBy: { sortOrder: 'asc' } },
+      projectVendors: { include: { vendor: true } },
+      projectContractors: { include: { contractor: true } },
     },
   })
 
@@ -102,7 +104,11 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       )}
 
       {/* Add Expense */}
-      <ClientExpenseForm projectId={project.id} />
+      <ClientExpenseForm
+        projectId={project.id}
+        vendors={(project as any).projectVendors?.map((pv: any) => pv.vendor) ?? []}
+        contractors={(project as any).projectContractors?.map((pc: any) => pc.contractor) ?? []}
+      />
 
       {/* Client Submitted Expenses */}
       {project.expenseTransactions.some(t => t.approvalStatus === 'pending' || t.approvalStatus === 'rejected') && (

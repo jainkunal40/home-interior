@@ -31,13 +31,17 @@ const PAYMENT_MODES = [
   { value: 'other', label: 'Other' },
 ]
 
-export function ClientExpenseForm({ projectId }: { projectId: string }) {
+export function ClientExpenseForm({ projectId, vendors = [], contractors = [] }: { projectId: string; vendors?: { id: string; name: string }[]; contractors?: { id: string; name: string }[] }) {
   const [showForm, setShowForm] = useState(false)
+  const [category, setCategory] = useState('')
   const submitAction = submitClientExpense.bind(null, projectId)
   const [state, action, pending] = useActionState(submitAction, null)
 
   useEffect(() => {
-    if (state?.success) setShowForm(false)
+    if (state?.success) {
+      setShowForm(false)
+      setCategory('')
+    }
   }, [state?.success])
 
   if (!showForm) {
@@ -70,10 +74,24 @@ export function ClientExpenseForm({ projectId }: { projectId: string }) {
             <Input name="amount" label="Amount (₹)" type="number" step="0.01" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Select name="category" label="Category" options={CATEGORIES} required />
+            <Select name="category" label="Category" options={CATEGORIES} required onChange={(e) => setCategory(e.target.value)} />
             <Select name="paymentMode" label="Payment Mode" options={PAYMENT_MODES} required />
           </div>
-          <Input name="vendorName" label="Vendor / Paid To" placeholder="Shop or person name" />
+          {vendors.length > 0 && (
+            <Select
+              name="vendorId"
+              label="Vendor"
+              options={[{ value: '', label: 'Select Vendor (optional)' }, ...vendors.map(v => ({ value: v.id, label: v.name }))]}
+            />
+          )}
+          {contractors.length > 0 && ['labor', 'subcontractor'].includes(category) && (
+            <Select
+              name="contractorId"
+              label="Subcontractor"
+              options={[{ value: '', label: 'Select Subcontractor (optional)' }, ...contractors.map(c => ({ value: c.id, label: c.name }))]}
+            />
+          )}
+          <Input name="vendorName" label="Vendor / Paid To" placeholder="Shop or person name (if not in list above)" />
           <Input name="taxAmount" label="Tax / GST Amount (₹)" type="number" step="0.01" defaultValue="0" />
           <Textarea name="notes" label="Notes" placeholder="What was this expense for?" rows={2} />
           <div className="flex gap-2">
