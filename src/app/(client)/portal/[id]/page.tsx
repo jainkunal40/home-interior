@@ -155,7 +155,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
                 type: 'income' as const,
               })),
               ...project.expenseTransactions
-                .filter(t => !t.laborEntryId)
+                .filter(t => !t.laborEntryId && t.approvalStatus === 'approved')
                 .map(t => ({
                   id: t.id,
                   label: t.notes || t.vendor?.name || t.category || 'Direct Payment',
@@ -164,7 +164,7 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
                   type: 'expense' as const,
                 })),
               ...project.expenseTransactions
-                .filter(t => t.laborEntryId)
+                .filter(t => t.laborEntryId && t.approvalStatus === 'approved')
                 .map(t => ({
                   id: t.id,
                   label: t.notes || t.vendor?.name || 'Labor Payment',
