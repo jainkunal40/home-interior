@@ -83,6 +83,16 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
+/* Fix date input on iOS/iPadOS */
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 2.75rem;
+}
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 /* Yellow-black accent gradient */
 .brand-gradient {
   background: linear-gradient(135deg, #facc15 0%, #eab308 50%, #ca8a04 100%);
