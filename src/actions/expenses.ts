@@ -243,7 +243,7 @@ export async function submitClientExpense(projectId: string, _prev: any, formDat
 
   const { date, vendorId, contractorId, ...rest } = parsed.data
 
-  await prisma.expenseTransaction.create({
+  const expense = await prisma.expenseTransaction.create({
     data: {
       ...rest,
       date: new Date(date),
@@ -264,6 +264,8 @@ export async function submitClientExpense(projectId: string, _prev: any, formDat
       projectName: project.name,
       amount: rest.amount,
       category: rest.category,
+      expenseId: expense.id,
+      notes: rest.notes || undefined,
     },
   )
 

@@ -5,7 +5,7 @@
  */
 
 import { sendWhatsAppMessage } from './whatsapp'
-import { sendTelegramMessage } from './telegram'
+import { sendTelegramMessage, sendTelegramMessageWithButtons } from './telegram'
 
 type NotificationChannel = 'none' | 'whatsapp' | 'telegram'
 
@@ -34,9 +34,29 @@ export async function notifyExpensePendingApproval(recipient: Recipient, data: {
   projectName: string
   amount: number
   category: string
+  expenseId: string
+  notes?: string
 }) {
-  const msg = `🔔 *New Expense Pending Approval*\n\nClient *${data.clientName}* submitted an expense for project *${data.projectName}*.\n\n💰 Amount: ₹${data.amount.toLocaleString('en-IN')}\n📂 Category: ${data.category}\n\nPlease review and approve/reject in the dashboard.`
-  await send(recipient, msg)
+  const code = data.expenseId.slice(0, 6)
+  const msg = `🔔 *New Expense Pending Approval*\n\nClient *${data.clientName}* submitted for *${data.projectName}*\n\n💰 Amount: ₹${data.amount.toLocaleString('en-IN')}\n📂 Category: ${data.category}${data.notes ? `\n📝 ${data.notes}` : ''}`
+
+  // Telegram: send with inline approve / reject buttons
+  if (recipient.channel === 'telegram' && recipient.telegramChatId) {
+    return sendTelegramMessageWithButtons(recipient.telegramChatId, msg, [
+      [
+        { text: '✅ Approve', callback_data: `approve:${data.expenseId}` },
+        { text: '❌ Reject', callback_data: `reject:${data.expenseId}` },
+      ],
+    ])
+  }
+
+  // WhatsApp: plain text with short code for text commands
+  if (recipient.channel === 'whatsapp' && recipient.phone) {
+    const full = `${msg}\n\nCode: *${code}*\n\nReply:\n*approve ${code}* to approve\n*reject ${code}* to reject\n\nOr send *pending* to see all pending expenses.`
+    return sendWhatsAppMessage(recipient.phone, full)
+  }
+
+  return false
 }
 
 /** Notify client when their expense is approved or rejected */
