@@ -375,6 +375,14 @@ function EditProjectForm({ project, onClose }: { project: any; onClose: () => vo
         <Input label="End Date" name="endDate" type="date" defaultValue={project.endDate ? format(new Date(project.endDate), 'yyyy-MM-dd') : ''} />
       </div>
 
+      <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+        <input type="checkbox" name="clientManagedExpenses" value="true" defaultChecked={!!project.clientManagedExpenses} className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-brand-500" />
+        <div>
+          <span className="text-sm font-medium text-gray-800">Client manages expenses directly</span>
+          <p className="text-xs text-gray-500 mt-0.5">When enabled, new expenses default to "Paid directly by client"</p>
+        </div>
+      </label>
+
       <div className="border-t border-gray-100 pt-3 mt-3">
         <p className="text-xs font-semibold text-gray-500 mb-2">CLIENT DETAILS</p>
         <Input label="Client Name" name="clientName" defaultValue={project.client?.name || ''} />

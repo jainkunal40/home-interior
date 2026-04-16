@@ -58,6 +58,7 @@ model Project {
   siteAddress String?
   status      String   @default("planning") // planning, active, on-hold, completed, cancelled
   budget      Float    @default(0)
+  clientManagedExpenses Boolean @default(false) // when true, new expenses default to paidByClient=true
   startDate   DateTime?
   endDate     DateTime?
   createdAt   DateTime @default(now())

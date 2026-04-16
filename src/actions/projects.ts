@@ -213,3 +213,19 @@ export async function deleteProject(id: string) {
   await prisma.project.deleteMany({ where: { id, userId: session.user.id } })
   revalidatePath('/dashboard')
 }
+
+export async function updatePhase(phaseId: string, projectId: string, status: string) {
+  const session = await requireAuth()
+  const phase = await prisma.projectPhase.findFirst({
+    where: { id: phaseId, project: { userId: session.user.id } },
+  })
+  if (!phase) return { error: 'Phase not found' }
+
+  await prisma.projectPhase.update({
+    where: { id: phaseId },
+    data: { status },
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}

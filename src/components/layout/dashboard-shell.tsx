@@ -13,8 +13,11 @@ import {
   X,
   Users,
   Store,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { signOutAction } from '@/actions/sign-out'
+import { useTheme } from '@/components/theme-provider'
 import { useState, useCallback } from 'react'
 
 interface DashboardShellProps {
@@ -39,6 +42,7 @@ const bottomNavItems = [
 
 export function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname()
+  const { theme, toggle } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const openSidebar = useCallback(() => setSidebarOpen(true), [])
@@ -62,7 +66,14 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             <Image src="/logo.jpg" alt="Explore Interiors" width={32} height={32} className="rounded-lg" />
             <span className="font-bold text-white">Explore Interiors</span>
           </Link>
-          <div className="w-[44px]" />
+          <button
+            type="button"
+            onClick={toggle}
+            className="p-2 rounded-lg hover:bg-dark-800 active:bg-dark-700 min-w-[44px] min-h-[44px] flex items-center justify-center text-brand-400"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
         </div>
       </header>
 
@@ -121,6 +132,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 }
 
 function SidebarContent({ pathname, user, onClose }: { pathname: string; user: any; onClose?: () => void }) {
+  const { theme, toggle } = useTheme()
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 h-16 border-b border-dark-800">
@@ -173,6 +185,14 @@ function SidebarContent({ pathname, user, onClose }: { pathname: string; user: a
             <p className="text-sm font-medium text-white truncate">{user?.name}</p>
             <p className="text-xs text-dark-400 truncate">{user?.email}</p>
           </div>
+          <button
+            type="button"
+            onClick={toggle}
+            className="p-2 rounded-lg hover:bg-dark-800 text-dark-400 hover:text-brand-400 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <form action={signOutAction}>
             <button type="submit" className="p-2 rounded-lg hover:bg-dark-800 text-dark-400 hover:text-brand-400 min-w-[44px] min-h-[44px] flex items-center justify-center">
               <LogOut className="w-4 h-4" />

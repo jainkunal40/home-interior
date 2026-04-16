@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useActionState } from 'react'
+import { useState, useEffect, useActionState, useTransition } from 'react'
 import { createMilestone, updateMilestone, deleteMilestone } from '@/actions/milestones'
+import { updatePhase } from '@/actions/projects'
 import { getLabelForValue, MILESTONE_STATUSES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -125,25 +126,15 @@ export function MilestonesTab({ project }: { project: any }) {
         </div>
       )}
 
-      {/* Phase Overview */}
+      {/* Phase Overview — editable */}
       {phases.length > 0 && (
         <Card>
           <CardContent className="p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Project Phases</h3>
             <div className="space-y-2">
-              {phases.map((phase: any) => {
-                const phaseColor = phase.status === 'completed' ? 'bg-green-100 text-green-700' :
-                  phase.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                return (
-                  <div key={phase.id} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">{phase.name}</span>
-                    <Badge className={phaseColor}>
-                      {phase.status === 'in_progress' ? 'In Progress' :
-                        phase.status === 'completed' ? 'Done' : 'Pending'}
-                    </Badge>
-                  </div>
-                )
-              })}
+              {phases.map((phase: any) => (
+                <PhaseRow key={phase.id} phase={phase} projectId={project.id} />
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -203,5 +194,57 @@ function MilestoneForm({ project, editItem, onClose }: { project: any; editItem:
         </Button>
       </div>
     </form>
+  )
+}
+
+const PHASE_STATUSES = [
+  { value: 'pending', label: 'Pending', color: 'bg-gray-100 text-gray-600' },
+  { value: 'in_progress', label: 'In Progress', color: 'bg-blue-100 text-blue-700' },
+  { value: 'completed', label: 'Done', color: 'bg-green-100 text-green-700' },
+]
+
+function PhaseRow({ phase, projectId }: { phase: any; projectId: string }) {
+  const [isPending, startTransition] = useTransition()
+  const [currentStatus, setCurrentStatus] = useState(phase.status || 'pending')
+
+  function handleStatusChange(newStatus: string) {
+    setCurrentStatus(newStatus)
+    startTransition(async () => {
+      await updatePhase(phase.id, projectId, newStatus)
+    })
+  }
+
+  const info = PHASE_STATUSES.find(s => s.value === currentStatus) ?? PHASE_STATUSES[0]
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className={`w-2 h-2 rounded-full shrink-0 ${
+          currentStatus === 'completed' ? 'bg-green-500' :
+          currentStatus === 'in_progress' ? 'bg-blue-500' :
+          'bg-gray-300'
+        }`} />
+        <span className={`text-sm ${currentStatus === 'completed' ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+          {phase.name}
+        </span>
+      </div>
+      <div className="flex gap-1 shrink-0">
+        {PHASE_STATUSES.map(s => (
+          <button
+            key={s.value}
+            type="button"
+            disabled={isPending}
+            onClick={() => handleStatusChange(s.value)}
+            className={`text-xs px-2 py-1 rounded-md border transition-colors min-h-[30px] ${
+              currentStatus === s.value
+                ? `${s.color} border-transparent font-semibold`
+                : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300 hover:text-gray-600'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }

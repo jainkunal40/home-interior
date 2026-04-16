@@ -17,6 +17,7 @@ export const projectSchema = z.object({
   siteAddress: z.string().optional(),
   status: z.enum(['planning', 'active', 'on-hold', 'completed', 'cancelled']).default('planning'),
   budget: z.coerce.number().min(0, 'Budget must be positive').default(0),
+  clientManagedExpenses: z.coerce.boolean().default(false),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   clientName: z.string().optional(),

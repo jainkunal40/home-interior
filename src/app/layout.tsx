@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider'
 
 export const metadata: Metadata = {
   title: 'Explore Interiors — Project Finance Tracker',
@@ -16,14 +17,22 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Anti-flash: apply saved theme before first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('sitebooks-theme');if(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)t='dark';if(t==='dark')document.documentElement.classList.add('dark')}catch(e){}`,
+          }}
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen font-sans">{children}</body>
+      <body className="min-h-screen font-sans">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   )
 }

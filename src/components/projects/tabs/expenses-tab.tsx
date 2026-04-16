@@ -335,7 +335,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
         <label htmlFor="isReimbursable" className="text-sm text-gray-700">Mark as reimbursable</label>
       </div>
       <div className="flex items-center gap-2 py-1">
-        <input type="checkbox" name="paidByClient" value="true" id="paidByClient" defaultChecked={editItem?.paidByClient || false} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <input type="checkbox" name="paidByClient" value="true" id="paidByClient" defaultChecked={editItem?.paidByClient ?? !!project.clientManagedExpenses} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
         <label htmlFor="paidByClient" className="text-sm text-gray-700">Paid directly by client</label>
       </div>
       <div className="flex gap-2 pt-2">

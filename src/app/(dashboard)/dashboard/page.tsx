@@ -219,9 +219,9 @@ export default async function DashboardPage() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-dark-500">Expenses</span>
+                        <span className="text-dark-500">Total Spent</span>
                         <span className="font-medium text-red-600 tabular-nums">
-                          {formatINRCompact(p.expenses)}
+                          {formatINRCompact(p.expenses + p.labor)}
                         </span>
                       </div>
                       <div className="flex justify-between">

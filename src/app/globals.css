@@ -28,6 +28,35 @@
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
+/* Dark mode — class strategy for Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
+
+/* Semantic color tokens */
+:root {
+  --c-bg: #f8f8f8;
+  --c-surface: #ffffff;
+  --c-surface-muted: #f8f8f8;
+  --c-border: #e4e4e4;
+  --c-border-subtle: #f0f0f0;
+  --c-text-primary: #171717;
+  --c-text-secondary: #404040;
+  --c-text-muted: #737373;
+  --c-text-faint: #a3a3a3;
+}
+
+html.dark {
+  color-scheme: dark;
+  --c-bg: #0a0a0a;
+  --c-surface: #1e1e1e;
+  --c-surface-muted: #262626;
+  --c-border: #333333;
+  --c-border-subtle: #2a2a2a;
+  --c-text-primary: #f0f0f0;
+  --c-text-secondary: #d1d1d1;
+  --c-text-muted: #a3a3a3;
+  --c-text-faint: #737373;
+}
+
 @layer base {
   * {
     @apply border-gray-200;
@@ -35,6 +64,60 @@
   body {
     @apply bg-dark-50 text-dark-900 antialiased;
   }
+}
+
+/* ============================================================
+   Global dark mode overrides — applied via html.dark class
+   Covers standard Tailwind classes used throughout the app
+   without needing to touch every component file.
+   ============================================================ */
+
+/* Page & layout backgrounds */
+html.dark body { background-color: var(--c-bg); color: var(--c-text-primary); }
+html.dark .bg-dark-50 { background-color: var(--c-bg); }
+html.dark .bg-white { background-color: var(--c-surface); }
+html.dark .bg-gray-50 { background-color: var(--c-surface-muted); }
+html.dark .bg-gray-100 { background-color: #2e2e2e; }
+html.dark .bg-gray-200 { background-color: #363636; }
+
+/* Text colors */
+html.dark .text-gray-900 { color: var(--c-text-primary); }
+html.dark .text-gray-800 { color: #e4e4e4; }
+html.dark .text-gray-700 { color: var(--c-text-secondary); }
+html.dark .text-gray-600 { color: #c0c0c0; }
+html.dark .text-gray-500 { color: var(--c-text-muted); }
+html.dark .text-dark-900 { color: var(--c-text-primary); }
+html.dark .text-dark-700 { color: var(--c-text-secondary); }
+html.dark .text-dark-500 { color: var(--c-text-muted); }
+
+/* Border colors */
+html.dark .border-gray-200 { border-color: var(--c-border); }
+html.dark .border-gray-100 { border-color: var(--c-border-subtle); }
+html.dark .border-dark-100 { border-color: var(--c-border-subtle); }
+html.dark .border-dark-200 { border-color: var(--c-border); }
+html.dark .border-dark-300 { border-color: #404040; }
+
+/* Form controls — custom background, text, and border */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]):not([type="reset"]) {
+  background-color: var(--c-surface-muted);
+  color: var(--c-text-primary);
+  border-color: #404040;
+}
+html.dark select {
+  background-color: var(--c-surface-muted);
+  color: var(--c-text-primary);
+  border-color: #404040;
+}
+html.dark textarea {
+  background-color: var(--c-surface-muted);
+  color: var(--c-text-primary);
+  border-color: #404040;
+}
+html.dark input:disabled,
+html.dark select:disabled,
+html.dark textarea:disabled {
+  background-color: var(--c-surface);
+  color: var(--c-text-faint);
 }
 
 /* Mobile touch fixes */

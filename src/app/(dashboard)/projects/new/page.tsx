@@ -73,6 +73,13 @@ export default function NewProjectPage() {
               <Input name="startDate" label="Start Date" type="date" />
               <Input name="endDate" label="End Date" type="date" />
             </div>
+            <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+              <input type="checkbox" name="clientManagedExpenses" value="true" className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-brand-500" />
+              <div>
+                <span className="text-sm font-medium text-gray-800">Client manages expenses directly</span>
+                <p className="text-xs text-gray-500 mt-0.5">When enabled, new expenses will default to "Paid directly by client"</p>
+              </div>
+            </label>
           </CardContent>
         </Card>
 
