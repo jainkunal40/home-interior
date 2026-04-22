@@ -73,3 +73,50 @@ export async function deleteIncome(incomeId: string, projectId: string) {
   await prisma.incomeTransaction.delete({ where: { id: incomeId } })
   revalidatePath(`/projects/${projectId}`)
 }
+
+// ─── Client-initiated payment to owner ──────────────────────
+
+export async function submitClientPayment(projectId: string, _prev: any, formData: FormData) {
+  const { auth } = await import('@/lib/auth')
+  const session = await auth()
+  if (!session?.user?.id) return { error: 'Not authenticated' }
+
+  const client = await prisma.client.findFirst({ where: { userId: session.user.id } })
+  if (!client) return { error: 'Client not found' }
+
+  const project = await prisma.project.findFirst({ where: { id: projectId, clientId: client.id } })
+  if (!project) return { error: 'Project not found' }
+
+  const amount = parseFloat(formData.get('amount') as string)
+  const date = formData.get('date') as string
+  const paymentMode = formData.get('paymentMode') as string
+  const paymentType = formData.get('paymentType') as string
+  const referenceNumber = (formData.get('referenceNumber') as string) || undefined
+  const notes = (formData.get('notes') as string) || undefined
+
+  if (!amount || amount <= 0) return { error: 'Amount must be positive' }
+  if (!date) return { error: 'Date is required' }
+  if (!paymentMode) return { error: 'Payment mode is required' }
+  if (!paymentType) return { error: 'Payment type is required' }
+
+  await prisma.incomeTransaction.create({
+    data: {
+      date: new Date(date),
+      amount,
+      paymentType,
+      paymentMode,
+      receivedFrom: client.name,
+      referenceNumber,
+      notes,
+      projectId,
+    },
+  })
+
+  await notifyPaymentReceived(
+    { channel: 'none' },
+    { projectName: project.name, amount, paymentType },
+  )
+
+  revalidatePath(`/portal/${projectId}`)
+  return { success: true }
+}

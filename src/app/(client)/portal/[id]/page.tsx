@@ -10,6 +10,7 @@ import { ArrowLeft, CheckCircle, Clock, IndianRupee, Wallet, Receipt, AlertCircl
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ClientExpenseForm } from './client-expense-form'
+import { ClientPaymentForm } from './client-payment-form'
 
 export default async function ClientProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -102,6 +103,9 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
           </CardContent>
         </Card>
       )}
+
+      {/* Record Payment to Owner */}
+      <ClientPaymentForm projectId={project.id} />
 
       {/* Add Expense */}
       <ClientExpenseForm
