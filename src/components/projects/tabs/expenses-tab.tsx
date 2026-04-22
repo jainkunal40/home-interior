@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Modal } from '@/components/ui/modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Wallet, Trash2, Edit2, Link2, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, Wallet, Trash2, Edit2, Link2, CheckCircle, XCircle, Package } from 'lucide-react'
 import { format } from 'date-fns'
 
 // Categories that now live in the Materials tab — excluded from Expenses
@@ -35,7 +35,24 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
     ? approvedTransactions
     : approvedTransactions.filter((e: any) => e.category === filterCategory)
 
-  const total = approvedTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
+  // Flatten material entry payments into display rows (read-only)
+  const materialPaymentRows = (project.materialEntries ?? []).flatMap((entry: any) =>
+    (entry.payments ?? []).map((p: any) => ({
+      _isMaterialPayment: true,
+      id: p.id,
+      entryId: entry.id,
+      description: entry.description,
+      category: entry.category,
+      amount: p.amount,
+      date: p.date,
+      paymentMode: p.paymentMode,
+      paidByClient: entry.paidByClient,
+      vendorName: entry.vendorName,
+    }))
+  )
+  const materialPaymentTotal = materialPaymentRows.reduce((s: number, p: any) => s + p.amount, 0)
+
+  const total = approvedTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0) + materialPaymentTotal
   const pendingTotal = pendingTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
   const filteredTotal = expenses.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
 
@@ -218,6 +235,47 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Material Payments (read-only — manage from Materials tab) */}
+      {materialPaymentRows.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Package className="w-3.5 h-3.5" />
+            Material Payments
+          </h4>
+          {materialPaymentRows
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .map((p: any) => (
+              <Card key={p.id} className="border-blue-100 bg-blue-50/30">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-red-600 tabular-nums">{formatINR(p.amount)}</span>
+                        <Badge className="bg-blue-50 text-blue-700 capitalize">
+                          {getLabelForValue(EXPENSE_CATEGORIES, p.category) || p.category}
+                        </Badge>
+                        {p.paidByClient && (
+                          <Badge className="bg-purple-50 text-purple-700">Client Paid</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 flex-wrap">
+                        <span>{format(new Date(p.date), 'dd MMM yyyy')}</span>
+                        <span>·</span>
+                        <span>{getLabelForValue(PAYMENT_MODES, p.paymentMode)}</span>
+                        {p.vendorName && <><span>·</span><span>{p.vendorName}</span></>}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">{p.description}</p>
+                    </div>
+                    <div className="shrink-0">
+                      <span className="text-xs text-blue-400 font-medium">Materials tab</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
         </div>
       )}
 

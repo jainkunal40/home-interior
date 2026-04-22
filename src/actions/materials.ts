@@ -76,7 +76,7 @@ export async function updateMaterial(materialId: string, projectId: string, _pre
   const parsed = materialSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { billDate, vendorId, phaseId, ...rest } = parsed.data
+  const { billDate, vendorId, phaseId, paidByClient, ...rest } = parsed.data
 
   await prisma.materialEntry.updateMany({
     where: { id: materialId, projectId },
