@@ -370,16 +370,17 @@ model ActivityLog {
 // ─── Material Entries ────────────────────────────────────────
 
 model MaterialEntry {
-  id          String    @id @default(cuid())
-  description String    // e.g. "Teak wood — Shree Timber Works"
-  category    String    @default("materials") // materials, hardware, furnishing, etc.
-  vendorName  String?
-  billNumber  String?
-  billDate    DateTime?
-  billAmount  Float     // total bill / order value
-  notes       String?
-  phaseId     String?
-  createdAt   DateTime  @default(now())
+  id           String    @id @default(cuid())
+  description  String    // e.g. "Teak wood — Shree Timber Works"
+  category     String    @default("materials") // materials, hardware, furnishing, etc.
+  vendorName   String?
+  billNumber   String?
+  billDate     DateTime?
+  billAmount   Float     // total bill / order value
+  paidByClient Boolean   @default(false) // true = client bears this cost, excluded from owner P&L
+  notes        String?
+  phaseId      String?
+  createdAt    DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   projectId   String

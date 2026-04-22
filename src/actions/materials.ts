@@ -13,6 +13,7 @@ const materialSchema = z.object({
   billNumber: z.string().optional(),
   billDate: z.string().optional(),
   billAmount: z.coerce.number().min(0, 'Bill amount must be 0 or more'),
+  paidByClient: z.string().optional(), // checkbox sends 'on' when checked
   phaseId: z.string().optional(),
   notes: z.string().optional(),
 })
@@ -39,7 +40,7 @@ export async function createMaterial(projectId: string, _prev: any, formData: Fo
   const parsed = materialSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const { billDate, vendorId, phaseId, ...rest } = parsed.data
+  const { billDate, vendorId, phaseId, paidByClient, ...rest } = parsed.data
 
   const entry = await prisma.materialEntry.create({
     data: {
@@ -47,6 +48,7 @@ export async function createMaterial(projectId: string, _prev: any, formData: Fo
       billDate: billDate ? new Date(billDate) : null,
       vendorId: vendorId || null,
       phaseId: phaseId || null,
+      paidByClient: paidByClient === 'on',
       projectId,
     },
   })
@@ -83,6 +85,7 @@ export async function updateMaterial(materialId: string, projectId: string, _pre
       billDate: billDate ? new Date(billDate) : null,
       vendorId: vendorId || null,
       phaseId: phaseId || null,
+      paidByClient: paidByClient === 'on',
     },
   })
 

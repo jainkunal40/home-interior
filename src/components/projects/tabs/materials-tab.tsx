@@ -112,6 +112,9 @@ export function MaterialsTab({ project, allVendors = [] }: { project: any; allVe
                         <Badge className="bg-blue-50 text-blue-700 capitalize">
                           {MATERIAL_CATEGORIES.find(c => c.value === entry.category)?.label ?? entry.category}
                         </Badge>
+                        {entry.paidByClient && (
+                          <Badge className="bg-purple-50 text-purple-700">Client Paid</Badge>
+                        )}
                         {due <= 0 && (
                           <Badge className="bg-green-100 text-green-700">Fully Paid</Badge>
                         )}
@@ -397,6 +400,16 @@ function MaterialForm({
         placeholder="Specs, dimensions, or other details..."
         defaultValue={editItem?.notes || ''}
       />
+      {/* Client paid toggle */}
+      <label className="flex items-center gap-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          name="paidByClient"
+          defaultChecked={!!editItem?.paidByClient}
+          className="w-4 h-4 rounded border-gray-300 text-brand-600 accent-brand-500"
+        />
+        <span className="text-sm text-gray-700">Client bears this cost <span className="text-xs text-gray-400">(excluded from your P&L)</span></span>
+      </label>
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
         <Button type="submit" className="flex-1" disabled={isPending}>
