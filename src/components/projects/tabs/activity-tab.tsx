@@ -1,8 +1,13 @@
-import { prisma } from '@/lib/prisma'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { getActivityLogs } from '@/actions/projects'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Activity } from 'lucide-react'
 import { format } from 'date-fns'
+
+type Log = Awaited<ReturnType<typeof getActivityLogs>>[number]
 
 const ICONS: Record<string, string> = {
   payment_received: '💵',
@@ -24,13 +29,26 @@ function icon(action: string) {
   return ICONS[action] ?? '📌'
 }
 
-export async function ActivityTab({ projectId }: { projectId: string }) {
-  const logs = await prisma.activityLog.findMany({
-    where: { projectId },
-    include: { user: { select: { name: true, role: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  })
+export function ActivityTab({ projectId }: { projectId: string }) {
+  const [logs, setLogs] = useState<Log[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getActivityLogs(projectId).then(data => {
+      setLogs(data)
+      setLoading(false)
+    })
+  }, [projectId])
+
+  if (loading) {
+    return (
+      <div className="space-y-2 animate-pulse">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-14 bg-gray-100 rounded-xl" />
+        ))}
+      </div>
+    )
+  }
 
   if (logs.length === 0) {
     return (
@@ -43,7 +61,7 @@ export async function ActivityTab({ projectId }: { projectId: string }) {
   }
 
   // Group by date
-  const groups: Record<string, typeof logs> = {}
+  const groups: Record<string, Log[]> = {}
   for (const log of logs) {
     const key = format(new Date(log.createdAt), 'dd MMM yyyy')
     if (!groups[key]) groups[key] = []
@@ -91,3 +109,4 @@ export async function ActivityTab({ projectId }: { projectId: string }) {
     </div>
   )
 }
+

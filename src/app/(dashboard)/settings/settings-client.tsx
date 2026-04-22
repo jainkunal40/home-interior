@@ -2,18 +2,20 @@
 
 import { useState, useActionState } from 'react'
 import { updateProfile, changePassword } from '@/actions/settings'
+import { useTheme } from '@/components/theme-provider'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, Sun, Moon } from 'lucide-react'
 
-export function SettingsClient({ user }: { user: any }) {
+export function SettingsClient({ user, preferences = {} }: { user: any; preferences?: Record<string, string> }) {
   const [profileState, profileAction, profilePending] = useActionState(updateProfile, null)
   const [passwordState, passwordAction, passwordPending] = useActionState(changePassword, null)
   const [channel, setChannel] = useState<string>(user.notificationChannel || 'none')
+  const { theme, toggle } = useTheme()
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -105,6 +107,31 @@ export function SettingsClient({ user }: { user: any }) {
               {passwordPending ? 'Changing...' : 'Change Password'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Preferences */}
+      <Card>
+        <CardHeader>
+          <h2 className="font-semibold text-gray-900">Preferences</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Theme</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {theme === 'dark' ? 'Dark mode is on' : 'Light mode is on'} — synced across devices
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggle}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:border-brand-400 hover:text-brand-600 transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+            </button>
+          </div>
         </CardContent>
       </Card>
 

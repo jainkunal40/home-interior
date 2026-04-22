@@ -25,6 +25,22 @@ model User {
   projects      Project[]
   activityLogs  ActivityLog[]
   clientProfile Client?   @relation("ClientUser")
+  preferences   UserPreference[]
+}
+
+// ─── User Preferences ────────────────────────────────────────
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String   // e.g. "theme", "currency", "dateFormat"
+  value     String   // stored as plain string; parse as needed
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
 }
 
 // ─── Clients ────────────────────────────────────────────────

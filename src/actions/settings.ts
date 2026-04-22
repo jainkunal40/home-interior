@@ -102,3 +102,31 @@ export async function getUserProfile() {
     select: { id: true, name: true, email: true, phone: true, notificationChannel: true, telegramChatId: true, role: true, createdAt: true },
   })
 }
+
+// ─── User Preferences ────────────────────────────────────────
+
+/**
+ * Fetch all preferences for the current user as a plain object.
+ * Safe to call from unauthenticated routes — returns {} if not logged in.
+ */
+export async function getPreferences(): Promise<Record<string, string>> {
+  try {
+    const session = await requireAuth()
+    const rows = await prisma.userPreference.findMany({ where: { userId: session.user.id } })
+    return Object.fromEntries(rows.map(r => [r.key, r.value]))
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Upsert a single preference key/value for the current user.
+ */
+export async function setPreference(key: string, value: string) {
+  const session = await requireAuth()
+  await prisma.userPreference.upsert({
+    where: { userId_key: { userId: session.user.id, key } },
+    update: { value },
+    create: { userId: session.user.id, key, value },
+  })
+}

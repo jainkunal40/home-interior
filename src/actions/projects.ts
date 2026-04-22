@@ -291,3 +291,20 @@ export async function updatePhase(phaseId: string, projectId: string, status: st
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
+
+export async function getActivityLogs(projectId: string) {
+  const session = await requireAuth()
+  // Verify project ownership
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: session.user.id },
+    select: { id: true },
+  })
+  if (!project) return []
+
+  return prisma.activityLog.findMany({
+    where: { projectId },
+    include: { user: { select: { name: true, role: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  })
+}
