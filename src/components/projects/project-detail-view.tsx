@@ -61,15 +61,21 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
   const totalIncome = project.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
   // Only approved expenses for calculations — exclude labor-linked to avoid double-counting
   const approvedExpenses = project.expenseTransactions.filter((t: any) => t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
+  // Total paid across all MaterialEntry payments (tracked separately from ExpenseTransactions)
+  const totalMaterialsPaid = (project.materialEntries ?? []).reduce(
+    (s: number, e: any) => s + (e.payments ?? []).reduce((ps: number, p: any) => ps + p.amount, 0), 0
+  )
   const totalExpenses = approvedExpenses
     .filter((t: any) => !t.laborEntryId)
     .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
+    + totalMaterialsPaid
   const totalLabor = project.laborEntries
     .reduce((s: number, t: any) => s + t.totalAmount, 0)
-  // Owner-only costs (for P&L)
+  // Owner-only costs (for P&L) — treat all material payments as owner-paid for now
   const ownerExpenses = approvedExpenses
     .filter((t: any) => !t.paidByClient && !t.laborEntryId)
     .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
+    + totalMaterialsPaid
   const ownerLabor = project.laborEntries
     .filter((t: any) => !t.paidByClient)
     .reduce((s: number, t: any) => s + t.totalAmount, 0)

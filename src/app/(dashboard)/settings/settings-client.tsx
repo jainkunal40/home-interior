@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useActionState } from 'react'
-import { updateProfile, changePassword } from '@/actions/settings'
+import { useState, useActionState, useTransition } from 'react'
+import { updateProfile, changePassword, migrateMaterialExpenses } from '@/actions/settings'
 import { useTheme } from '@/components/theme-provider'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -135,6 +135,9 @@ export function SettingsClient({ user, preferences = {} }: { user: any; preferen
         </CardContent>
       </Card>
 
+      {/* Data Migration */}
+      <MigrationCard />
+
       {/* Account Info */}
       <Card>
         <CardHeader>
@@ -155,6 +158,45 @@ export function SettingsClient({ user, preferences = {} }: { user: any; preferen
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function MigrationCard() {
+  const [isPending, startTransition] = useTransition()
+  const [result, setResult] = useState<{ migrated?: number; skipped?: number; error?: string } | null>(null)
+
+  function run() {
+    startTransition(async () => {
+      const res = await migrateMaterialExpenses()
+      setResult(res.success ? { migrated: res.migrated, skipped: res.skipped } : { error: 'Migration failed' })
+    })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-semibold text-gray-900">Data Migration</h2>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="text-sm text-gray-600">
+          <p>Convert existing material category expenses (Materials, Hardware, Furnishing) into the new <strong>Materials tab</strong> format — with bill amount and paid amount tracked separately.</p>
+          <p className="text-xs text-gray-400 mt-1">Safe to run multiple times. Run once after updating to the new version.</p>
+        </div>
+        {result?.migrated !== undefined && (
+          <div className="p-2 rounded-lg bg-green-50 text-green-700 text-sm">
+            ✅ Migrated {result.migrated} expense{result.migrated !== 1 ? 's' : ''} to Materials tab.
+            {result.migrated === 0 && ' Nothing left to migrate.'}
+            {(result.skipped ?? 0) > 0 && ` (${result.skipped} skipped — have attachments, remove them first)`}
+          </div>
+        )}
+        {result?.error && (
+          <div className="p-2 rounded-lg bg-red-50 text-red-700 text-sm">{result.error}</div>
+        )}
+        <Button variant="outline" size="sm" onClick={run} disabled={isPending}>
+          {isPending ? 'Migrating...' : 'Run Migration'}
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 

@@ -15,14 +15,21 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Wallet, Trash2, Edit2, Link2, CheckCircle, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
+// Categories that now live in the Materials tab — excluded from Expenses
+const MATERIAL_CATEGORY_SET = new Set(['materials', 'hardware', 'furnishing'])
+
 export function ExpensesTab({ project, allVendors = [], allContractors = [] }: { project: any; allVendors?: any[]; allContractors?: any[] }) {
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
   const [filterCategory, setFilterCategory] = useState<string>('all')
 
-  // Separate approved vs pending expenses
-  const approvedTransactions = project.expenseTransactions.filter((e: any) => e.approvalStatus !== 'pending' && e.approvalStatus !== 'rejected')
-  const pendingTransactions = project.expenseTransactions.filter((e: any) => e.approvalStatus === 'pending')
+  // Separate approved vs pending expenses — exclude material-category rows (now in Materials tab)
+  const approvedTransactions = project.expenseTransactions.filter(
+    (e: any) => e.approvalStatus !== 'pending' && e.approvalStatus !== 'rejected' && !MATERIAL_CATEGORY_SET.has(e.category)
+  )
+  const pendingTransactions = project.expenseTransactions.filter(
+    (e: any) => e.approvalStatus === 'pending' && !MATERIAL_CATEGORY_SET.has(e.category)
+  )
 
   const expenses = filterCategory === 'all'
     ? approvedTransactions
@@ -260,7 +267,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
       <Select
         name="category"
         label="Category *"
-        options={[...EXPENSE_CATEGORIES]}
+        options={EXPENSE_CATEGORIES.filter(c => !MATERIAL_CATEGORY_SET.has(c.value))}
         defaultValue={selectedCategory}
         onChange={(e) => setSelectedCategory(e.target.value)}
       />

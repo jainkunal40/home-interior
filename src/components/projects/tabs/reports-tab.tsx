@@ -23,12 +23,21 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
   const budgetRemaining = project.budget > 0 ? project.budget - totalCost : 0
 
   // Category breakdown (exclude labor-linked and unapproved)
+  // Category breakdown (approved non-labor expenses)
   const categoryBreakdown: Record<string, number> = {}
   for (const exp of project.expenseTransactions) {
     if (exp.laborEntryId) continue
     if (exp.approvalStatus === 'pending' || exp.approvalStatus === 'rejected') continue
     const cat = exp.category || 'misc'
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
+  }
+  // Add material entries (paid amounts) to category breakdown
+  for (const entry of (project.materialEntries ?? [])) {
+    const paid = (entry.payments ?? []).reduce((s: number, p: any) => s + p.amount, 0)
+    if (paid > 0) {
+      const cat = entry.category || 'materials'
+      categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + paid
+    }
   }
   const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])
 
@@ -43,10 +52,15 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
   // Pending receivables (project budget or expected - received)
   const pendingReceivable = project.budget > 0 ? Math.max(0, project.budget - totalIncome) : 0
 
-  // Pending payables (worker dues)
-  const pendingPayable = project.laborEntries.reduce(
+  // Pending payables (worker dues + unpaid material bills)
+  const laborDues = project.laborEntries.reduce(
     (s: number, l: any) => s + Math.max(0, l.totalAmount - l.advancePaid), 0
   )
+  const materialDues = (project.materialEntries ?? []).reduce((s: number, e: any) => {
+    const paid = (e.payments ?? []).reduce((ps: number, p: any) => ps + p.amount, 0)
+    return s + Math.max(0, e.billAmount - paid)
+  }, 0)
+  const pendingPayable = laborDues + materialDues
 
   // Monthly breakdown
   const monthlyIncome: Record<string, number> = {}
@@ -56,8 +70,16 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
     monthlyIncome[key] = (monthlyIncome[key] || 0) + t.amount
   }
   for (const t of project.expenseTransactions) {
+    if (t.laborEntryId) continue
     const key = new Date(t.date).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
     monthlyExpense[key] = (monthlyExpense[key] || 0) + t.amount + (t.taxAmount || 0)
+  }
+  // Add material payments to monthly expense breakdown
+  for (const entry of (project.materialEntries ?? [])) {
+    for (const payment of (entry.payments ?? [])) {
+      const key = new Date(payment.date).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
+      monthlyExpense[key] = (monthlyExpense[key] || 0) + payment.amount
+    }
   }
   const allMonths = [...new Set([...Object.keys(monthlyIncome), ...Object.keys(monthlyExpense)])]
 

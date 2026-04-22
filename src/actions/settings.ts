@@ -130,3 +130,69 @@ export async function setPreference(key: string, value: string) {
     create: { userId: session.user.id, key, value },
   })
 }
+
+// ─── One-time Migration ───────────────────────────────────────
+
+/**
+ * Converts all existing ExpenseTransaction records with material categories
+ * (materials, hardware, furnishing) into MaterialEntry + MaterialPayment records.
+ * billAmount = paidAmount = original expense amount + tax.
+ * Safe to run multiple times — each run only processes un-migrated expenses.
+ */
+export async function migrateMaterialExpenses() {
+  const session = await requireAuth()
+
+  const MATERIAL_CATS = ['materials', 'hardware', 'furnishing']
+
+  const expenses = await prisma.expenseTransaction.findMany({
+    where: {
+      project: { userId: session.user.id },
+      category: { in: MATERIAL_CATS },
+      approvalStatus: { not: 'rejected' },
+    },
+    include: { attachments: { select: { id: true } } },
+  })
+
+  if (expenses.length === 0) return { success: true, migrated: 0 }
+
+  let migrated = 0
+  let skipped = 0
+  for (const exp of expenses) {
+    // Skip expenses with attachments — they need manual handling
+    if (exp.attachments.length > 0) { skipped++; continue }
+    const billAmount = exp.amount + (exp.taxAmount ?? 0)
+    const description = exp.vendorName
+      ? `${exp.vendorName}${exp.billNumber ? ` — Bill #${exp.billNumber}` : ''}`
+      : `${exp.category} expense${exp.billNumber ? ` — Bill #${exp.billNumber}` : ''}`
+
+    const entry = await prisma.materialEntry.create({
+      data: {
+        description,
+        category: exp.category,
+        vendorName: exp.vendorName || null,
+        vendorId: exp.vendorId || null,
+        billNumber: exp.billNumber || null,
+        billDate: exp.date,
+        billAmount,
+        notes: exp.notes || null,
+        phaseId: exp.phaseId || null,
+        projectId: exp.projectId,
+      },
+    })
+
+    await prisma.materialPayment.create({
+      data: {
+        amount: billAmount,
+        date: exp.date,
+        paymentMode: exp.paymentMode ?? 'cash',
+        materialEntryId: entry.id,
+      },
+    })
+
+    await prisma.expenseTransaction.delete({ where: { id: exp.id } })
+    migrated++
+  }
+
+  revalidatePath('/projects')
+  return { success: true, migrated, skipped }
+}
