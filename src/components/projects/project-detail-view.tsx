@@ -16,6 +16,7 @@ import {
   MessageSquare,
   FileText,
   Activity,
+  Package,
 } from 'lucide-react'
 import Link from 'next/link'
 import { OverviewTab } from './tabs/overview-tab'
@@ -27,12 +28,14 @@ import { AttachmentsTab } from './tabs/attachments-tab'
 import { NotesTab } from './tabs/notes-tab'
 import { ReportsTab } from './tabs/reports-tab'
 import { ActivityTab } from './tabs/activity-tab'
+import { MaterialsTab } from './tabs/materials-tab'
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
   { id: 'income', label: 'Income', icon: IndianRupee },
   { id: 'expenses', label: 'Expenses', icon: Wallet },
   { id: 'labor', label: 'Labor', icon: Users },
+  { id: 'materials', label: 'Materials', icon: Package },
   { id: 'milestones', label: 'Milestones', icon: Flag },
   { id: 'attachments', label: 'Files', icon: Paperclip },
   { id: 'notes', label: 'Notes', icon: MessageSquare },
@@ -137,6 +140,7 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
         {activeTab === 'income' && <IncomeTab project={project} />}
         {activeTab === 'expenses' && <ExpensesTab project={project} allVendors={allVendors} allContractors={allContractors} />}
         {activeTab === 'labor' && <LaborTab project={project} allContractors={allContractors} />}
+        {activeTab === 'materials' && <MaterialsTab project={project} allVendors={allVendors} />}
         {activeTab === 'milestones' && <MilestonesTab project={project} />}
         {activeTab === 'attachments' && <AttachmentsTab project={project} />}
         {activeTab === 'notes' && <NotesTab project={project} />}

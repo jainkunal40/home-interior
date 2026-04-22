@@ -95,6 +95,7 @@ model Project {
   activityLogs        ActivityLog[]
   projectVendors      ProjectVendor[]
   projectContractors  ProjectContractor[]
+  materialEntries     MaterialEntry[]
 
   @@index([userId])
   @@index([clientId])
@@ -115,8 +116,9 @@ model Vendor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  expenses  ExpenseTransaction[]
-  projects  ProjectVendor[]
+  expenses         ExpenseTransaction[]
+  projects         ProjectVendor[]
+  materialEntries  MaterialEntry[]
 }
 
 // ─── Contractors ────────────────────────────────────────────
@@ -279,6 +281,7 @@ model ProjectPhase {
   expenseTransactions ExpenseTransaction[]
   laborEntries        LaborEntry[]
   milestones          Milestone[]
+  materialEntries     MaterialEntry[]
 
   @@index([projectId])
 }
@@ -363,3 +366,45 @@ model ActivityLog {
   @@index([userId])
   @@index([createdAt])
 }
+
+// ─── Material Entries ────────────────────────────────────────
+
+model MaterialEntry {
+  id          String    @id @default(cuid())
+  description String    // e.g. "Teak wood — Shree Timber Works"
+  category    String    @default("materials") // materials, hardware, furnishing, etc.
+  vendorName  String?
+  billNumber  String?
+  billDate    DateTime?
+  billAmount  Float     // total bill / order value
+  notes       String?
+  phaseId     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendorId    String?
+  vendor      Vendor?      @relation(fields: [vendorId], references: [id])
+  phase       ProjectPhase? @relation(fields: [phaseId], references: [id])
+  payments    MaterialPayment[]
+
+  @@index([projectId])
+  @@index([vendorId])
+}
+
+model MaterialPayment {
+  id              String   @id @default(cuid())
+  amount          Float
+  date            DateTime
+  paymentMode     String   @default("cash") // cash, bank_transfer, upi, cheque, card, other
+  referenceNumber String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  materialEntryId String
+  materialEntry   MaterialEntry @relation(fields: [materialEntryId], references: [id], onDelete: Cascade)
+
+  @@index([materialEntryId])
+}
+

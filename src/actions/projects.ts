@@ -77,6 +77,10 @@ export async function getProject(id: string) {
         orderBy: { createdAt: 'desc' },
         include: { contractor: true, payments: { select: { id: true, amount: true, date: true } } },
       },
+      materialEntries: {
+        orderBy: { createdAt: 'desc' },
+        include: { vendor: true, payments: { orderBy: { date: 'asc' } } },
+      },
       milestones: { orderBy: { dueDate: 'asc' } },
       attachments: { orderBy: { createdAt: 'desc' } },
       notes: { orderBy: { createdAt: 'desc' } },
