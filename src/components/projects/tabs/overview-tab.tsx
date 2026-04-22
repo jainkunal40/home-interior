@@ -11,12 +11,12 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { updateProject, deleteProject } from '@/actions/projects'
+import { updateProject, deleteProject, duplicateProject } from '@/actions/projects'
 import { resetClientPassword } from '@/actions/settings'
 import { assignVendorToProject, removeVendorFromProject } from '@/actions/vendors'
 import { assignContractorToProject, removeContractorFromProject } from '@/actions/contractors'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users, MessageCircle, Smartphone, RotateCcw, Send } from 'lucide-react'
+import { Pencil, Trash2, Eye, EyeOff, Copy, Check, Plus, X, Store, Users, MessageCircle, Smartphone, RotateCcw, Send, CopyPlus } from 'lucide-react'
 
 function shareViaWhatsApp(text: string) {
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
@@ -42,6 +42,7 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
   const [showEdit, setShowEdit] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isDuplicating, setIsDuplicating] = useState(false)
   const router = useRouter()
   const budgetUsed = totalExpenses + totalLabor
   const budgetPercent = project.budget > 0 ? Math.round((budgetUsed / project.budget) * 100) : 0
@@ -192,6 +193,20 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
               >
                 <Pencil className="w-3.5 h-3.5" />
                 Edit
+              </button>
+              <button
+                type="button"
+                disabled={isDuplicating}
+                onClick={async () => {
+                  setIsDuplicating(true)
+                  const res = await duplicateProject(project.id)
+                  setIsDuplicating(false)
+                  if (res?.id) router.push(`/projects/${res.id}`)
+                }}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 min-h-[44px] px-2 disabled:opacity-50"
+              >
+                <CopyPlus className="w-3.5 h-3.5" />
+                {isDuplicating ? 'Copying...' : 'Duplicate'}
               </button>
               <button
                 type="button"

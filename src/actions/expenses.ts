@@ -256,7 +256,7 @@ export async function submitClientExpense(projectId: string, _prev: any, formDat
   })
 
   // Notify owner
-  const owner = await prisma.user.findUnique({ where: { id: project.userId }, select: { phone: true, notificationChannel: true, telegramChatId: true } })
+  const owner = await prisma.user.findUnique({ where: { id: project.userId }, select: { phone: true, notificationChannel: true, telegramChatId: true, id: true } })
   await notifyExpensePendingApproval(
     { channel: (owner?.notificationChannel ?? 'none') as any, phone: owner?.phone, telegramChatId: owner?.telegramChatId },
     {
@@ -268,6 +268,19 @@ export async function submitClientExpense(projectId: string, _prev: any, formDat
       notes: rest.notes || undefined,
     },
   )
+
+  if (owner) {
+    await prisma.activityLog.create({
+      data: {
+        action: 'expense_submitted',
+        entityType: 'expense',
+        entityId: expense.id,
+        details: `Client ${client.name} submitted expense of ₹${rest.amount.toLocaleString('en-IN')} (${rest.category}) for approval`,
+        userId: owner.id,
+        projectId,
+      },
+    })
+  }
 
   revalidatePath(`/portal/${projectId}`)
   return { success: true, message: 'Expense submitted for approval' }
@@ -289,6 +302,17 @@ export async function approveExpense(expenseId: string) {
   })
 
   if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
+
+  await prisma.activityLog.create({
+    data: {
+      action: 'expense_approved',
+      entityType: 'expense',
+      entityId: expenseId,
+      details: `Expense of ₹${expense.amount.toLocaleString('en-IN')} (${expense.category}) approved`,
+      userId: session.user.id,
+      projectId: expense.projectId,
+    },
+  })
 
   // Notify client
   const client = expense.project.client
@@ -320,6 +344,17 @@ export async function rejectExpense(expenseId: string) {
   })
 
   if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
+
+  await prisma.activityLog.create({
+    data: {
+      action: 'expense_rejected',
+      entityType: 'expense',
+      entityId: expenseId,
+      details: `Expense of ₹${expense.amount.toLocaleString('en-IN')} (${expense.category}) rejected`,
+      userId: session.user.id,
+      projectId: expense.projectId,
+    },
+  })
 
   // Notify client
   const rejClient = expense.project.client

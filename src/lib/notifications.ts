@@ -89,3 +89,13 @@ export async function notifyMilestoneCompleted(recipient: Recipient, data: {
   const msg = `🎯 *Milestone Completed*\n\nMilestone *${data.milestoneTitle}* for project *${data.projectName}* has been marked as completed.\n\nGreat progress! 🎉`
   await send(recipient, msg)
 }
+
+/** Remind client about an upcoming milestone payment due tomorrow */
+export async function notifyMilestoneReminder(recipient: Recipient, data: {
+  projectName: string
+  milestoneTitle: string
+  dueDate: string
+}) {
+  const msg = `⏰ *Milestone Due Tomorrow*\n\nMilestone *${data.milestoneTitle}* for project *${data.projectName}* is due on *${data.dueDate}*.\n\nPlease ensure you are ready for the next stage.`
+  await send(recipient, msg)
+}

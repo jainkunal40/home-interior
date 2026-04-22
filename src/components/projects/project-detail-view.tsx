@@ -15,6 +15,7 @@ import {
   Paperclip,
   MessageSquare,
   FileText,
+  Activity,
 } from 'lucide-react'
 import Link from 'next/link'
 import { OverviewTab } from './tabs/overview-tab'
@@ -25,6 +26,7 @@ import { MilestonesTab } from './tabs/milestones-tab'
 import { AttachmentsTab } from './tabs/attachments-tab'
 import { NotesTab } from './tabs/notes-tab'
 import { ReportsTab } from './tabs/reports-tab'
+import { ActivityTab } from './tabs/activity-tab'
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -35,6 +37,7 @@ const tabs = [
   { id: 'attachments', label: 'Files', icon: Paperclip },
   { id: 'notes', label: 'Notes', icon: MessageSquare },
   { id: 'reports', label: 'Reports', icon: FileText },
+  { id: 'activity', label: 'Activity', icon: Activity },
 ] as const
 
 type TabId = (typeof tabs)[number]['id']
@@ -138,6 +141,7 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
         {activeTab === 'attachments' && <AttachmentsTab project={project} />}
         {activeTab === 'notes' && <NotesTab project={project} />}
         {activeTab === 'reports' && <ReportsTab project={project} totalIncome={totalIncome} totalExpenses={totalExpenses} totalLabor={totalLabor} netProfit={netProfit} clientPaidTotal={clientPaidTotal} pendingApprovalTotal={pendingApprovalTotal} />}
+        {activeTab === 'activity' && <ActivityTab projectId={project.id} />}
       </div>
     </div>
   )

@@ -214,6 +214,68 @@ export async function deleteProject(id: string) {
   revalidatePath('/dashboard')
 }
 
+export async function duplicateProject(id: string) {
+  const session = await requireAuth()
+  const source = await prisma.project.findFirst({
+    where: { id, userId: session.user.id },
+    include: {
+      phases: { orderBy: { sortOrder: 'asc' } },
+      milestones: true,
+    },
+  })
+  if (!source) return { error: 'Project not found' }
+
+  const newProject = await prisma.project.create({
+    data: {
+      name: `${source.name} (Copy)`,
+      description: source.description,
+      siteAddress: source.siteAddress,
+      status: 'planning',
+      budget: source.budget,
+      clientManagedExpenses: source.clientManagedExpenses,
+      userId: session.user.id,
+    },
+  })
+
+  // Copy phases
+  if (source.phases.length > 0) {
+    await prisma.projectPhase.createMany({
+      data: source.phases.map(p => ({
+        name: p.name,
+        status: 'pending',
+        sortOrder: p.sortOrder,
+        projectId: newProject.id,
+      })),
+    })
+  }
+
+  // Copy milestones (without dates/completion)
+  if (source.milestones.length > 0) {
+    await prisma.milestone.createMany({
+      data: source.milestones.map(m => ({
+        title: m.title,
+        description: m.description,
+        status: 'pending',
+        projectId: newProject.id,
+      })),
+    })
+  }
+
+  await prisma.activityLog.create({
+    data: {
+      action: 'created',
+      entityType: 'project',
+      entityId: newProject.id,
+      details: `Project duplicated from "${source.name}"`,
+      userId: session.user.id,
+      projectId: newProject.id,
+    },
+  })
+
+  revalidatePath('/dashboard')
+  return { success: true, id: newProject.id }
+}
+
 export async function updatePhase(phaseId: string, projectId: string, status: string) {
   const session = await requireAuth()
   const phase = await prisma.projectPhase.findFirst({

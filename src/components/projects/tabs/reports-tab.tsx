@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatINR } from '@/lib/currency'
 import { getLabelForValue, EXPENSE_CATEGORIES, TRADE_TYPES } from '@/lib/utils'
-import { Download, TrendingUp, TrendingDown, AlertTriangle, PieChart } from 'lucide-react'
+import { Download, TrendingUp, TrendingDown, AlertTriangle, PieChart, FileSpreadsheet } from 'lucide-react'
 
 interface ReportsTabProps {
   project: any
@@ -141,10 +141,26 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
           Profit & Loss Report
         </h3>
-        <Button size="sm" variant="outline" onClick={exportCSV}>
-          <Download className="w-4 h-4" />
-          Export CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-400 hidden sm:inline">Export:</span>
+            {(['income', 'expenses', 'labor'] as const).map(t => (
+              <a
+                key={t}
+                href={`/api/export?projectId=${project.id}&type=${t}`}
+                download
+                className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:border-brand-400 hover:text-brand-600 transition-colors flex items-center gap-1"
+              >
+                <FileSpreadsheet className="w-3 h-3" />
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </a>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" onClick={exportCSV}>
+            <Download className="w-4 h-4" />
+            Full Report
+          </Button>
+        </div>
       </div>
 
       {/* P&L Summary */}

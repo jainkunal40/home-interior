@@ -62,6 +62,17 @@ export async function updateMilestone(milestoneId: string, projectId: string, _p
         },
       )
     }
+    const session = await requireAuth()
+    await prisma.activityLog.create({
+      data: {
+        action: 'milestone_completed',
+        entityType: 'milestone',
+        entityId: milestoneId,
+        details: `Milestone “${rest.title}” marked as completed`,
+        userId: session.user.id,
+        projectId,
+      },
+    })
   }
 
   revalidatePath(`/projects/${projectId}`)
@@ -75,13 +86,24 @@ export async function deleteMilestone(milestoneId: string, projectId: string) {
 }
 
 export async function createNote(projectId: string, formData: FormData) {
-  await requireAuth()
+  const session = await requireAuth()
   const raw = Object.fromEntries(formData)
   const parsed = noteSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   await prisma.note.create({
     data: { content: parsed.data.content, projectId },
+  })
+
+  await prisma.activityLog.create({
+    data: {
+      action: 'note_added',
+      entityType: 'note',
+      entityId: projectId,
+      details: `Note added: “${parsed.data.content.slice(0, 80)}${parsed.data.content.length > 80 ? '…' : ''}”`,
+      userId: session.user.id,
+      projectId,
+    },
   })
 
   revalidatePath(`/projects/${projectId}`)

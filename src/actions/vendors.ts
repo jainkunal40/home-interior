@@ -35,6 +35,37 @@ export async function getAllVendorsSimple() {
   })
 }
 
+export async function getVendorAnalytics() {
+  const session = await requireAuth()
+  // Aggregate spend per vendor across all user's projects
+  const results = await prisma.expenseTransaction.groupBy({
+    by: ['vendorId', 'vendorName'],
+    where: {
+      project: { userId: session.user.id },
+      approvalStatus: { not: 'rejected' },
+      vendorId: { not: null },
+    },
+    _sum: { amount: true, taxAmount: true },
+    _count: { id: true },
+    orderBy: { _sum: { amount: 'desc' } },
+  })
+
+  // Enrich with vendor name from DB for tracked vendors
+  const vendorIds = results.map(r => r.vendorId).filter(Boolean) as string[]
+  const vendors = vendorIds.length > 0
+    ? await prisma.vendor.findMany({ where: { id: { in: vendorIds } }, select: { id: true, name: true, category: true } })
+    : []
+  const vendorMap = Object.fromEntries(vendors.map(v => [v.id, v]))
+
+  return results.map(r => ({
+    vendorId: r.vendorId,
+    name: r.vendorId ? (vendorMap[r.vendorId]?.name ?? r.vendorName ?? 'Unknown') : (r.vendorName ?? 'Unknown'),
+    category: r.vendorId ? (vendorMap[r.vendorId]?.category ?? null) : null,
+    totalSpend: (r._sum.amount ?? 0) + (r._sum.taxAmount ?? 0),
+    txCount: r._count.id,
+  }))
+}
+
 export async function createVendor(_prev: any, formData: FormData) {
   await requireAuth()
   const raw = Object.fromEntries(formData)
