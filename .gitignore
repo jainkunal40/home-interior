@@ -5,4 +5,4 @@ node_modules/
 *.db-journal
 public/uploads/*
 !public/uploads/.gitkeep
-workspaceStorage/
+workspaceStorage_analysis.txt
