@@ -68,7 +68,7 @@ export const RATE_TYPES = [
 
 export const PHASE_NAMES = [
   'Design', 'Demolition', 'Civil', 'Electrical', 'Plumbing',
-  'Carpentry', 'Painting', 'Furnishing', 'Handover',
+  'Carpentry', 'POP', 'Painting', 'Furnishing', 'Handover',
 ] as const
 
 export const MILESTONE_STATUSES = [

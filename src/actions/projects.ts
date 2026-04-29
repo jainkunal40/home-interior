@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/session'
 import { projectSchema } from '@/lib/validations'
+import { PHASE_NAMES } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 
@@ -63,7 +64,7 @@ export async function getProjects(search?: string, status?: string) {
 
 export async function getProject(id: string) {
   const session = await requireAuth()
-  return prisma.project.findFirst({
+  const project = await prisma.project.findFirst({
     where: { id, userId: session.user.id },
     include: {
       client: true,
@@ -88,6 +89,50 @@ export async function getProject(id: string) {
       projectContractors: { include: { contractor: true } },
     },
   })
+
+  if (!project) return null
+
+  const existingPhaseNames = new Set(project.phases.map(phase => phase.name.toLowerCase()))
+  const missingPhases = PHASE_NAMES.filter(name => !existingPhaseNames.has(name.toLowerCase()))
+
+  if (missingPhases.length > 0) {
+    const maxSortOrder = project.phases.reduce((max, phase) => Math.max(max, phase.sortOrder), -1)
+    await prisma.projectPhase.createMany({
+      data: missingPhases.map((name, i) => ({
+        name,
+        sortOrder: maxSortOrder + i + 1,
+        projectId: project.id,
+      })),
+    })
+
+    return prisma.project.findFirst({
+      where: { id, userId: session.user.id },
+      include: {
+        client: true,
+        phases: { orderBy: { sortOrder: 'asc' } },
+        incomeTransactions: { orderBy: { date: 'desc' } },
+        expenseTransactions: {
+          orderBy: { date: 'desc' },
+          include: { vendor: true, laborEntry: { include: { contractor: true } } },
+        },
+        laborEntries: {
+          orderBy: { createdAt: 'desc' },
+          include: { contractor: true, payments: { select: { id: true, amount: true, date: true } } },
+        },
+        materialEntries: {
+          orderBy: { createdAt: 'desc' },
+          include: { vendor: true, payments: { orderBy: { date: 'asc' } } },
+        },
+        milestones: { orderBy: { dueDate: 'asc' } },
+        attachments: { orderBy: { createdAt: 'desc' } },
+        notes: { orderBy: { createdAt: 'desc' } },
+        projectVendors: { include: { vendor: true } },
+        projectContractors: { include: { contractor: true } },
+      },
+    })
+  }
+
+  return project
 }
 
 export async function createProject(_prev: any, formData: FormData) {
@@ -130,12 +175,8 @@ export async function createProject(_prev: any, formData: FormData) {
   })
 
   // Create default phases
-  const defaultPhases = [
-    'Design', 'Demolition', 'Civil', 'Electrical', 'Plumbing',
-    'Carpentry', 'Painting', 'Furnishing', 'Handover',
-  ]
   await prisma.projectPhase.createMany({
-    data: defaultPhases.map((name, i) => ({
+    data: PHASE_NAMES.map((name, i) => ({
       name,
       sortOrder: i,
       projectId: project.id,
