@@ -38,6 +38,12 @@ export default async function ClientPortalPage() {
       incomeTransactions: { select: { amount: true } },
       expenseTransactions: { select: { amount: true, taxAmount: true, paidByClient: true, laborEntryId: true, approvalStatus: true } },
       laborEntries: { select: { advancePaid: true, paidByClient: true } },
+      materialEntries: {
+        where: { paidByClient: true },
+        select: {
+          payments: { select: { amount: true } },
+        },
+      },
       milestones: { select: { status: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -56,7 +62,9 @@ export default async function ClientPortalPage() {
     const clientPaidLabor = p.laborEntries
       .filter(t => t.paidByClient)
       .reduce((s, entry) => s + entry.advancePaid, 0)
-    const paid = income + clientPaidExpenses + clientPaidLabor
+    const clientPaidMaterials = p.materialEntries
+      .reduce((s, entry) => s + entry.payments.reduce((ps, payment) => ps + payment.amount, 0), 0)
+    const paid = income + clientPaidExpenses + clientPaidLabor + clientPaidMaterials
     const completedMilestones = p.milestones.filter(m => m.status === 'completed').length
 
     totalPaid += paid

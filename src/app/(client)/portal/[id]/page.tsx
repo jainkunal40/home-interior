@@ -32,6 +32,20 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
         orderBy: { date: 'desc' },
       },
       laborEntries: { where: { paidByClient: true }, select: { advancePaid: true } },
+      materialEntries: {
+        where: { paidByClient: true },
+        select: {
+          id: true,
+          description: true,
+          category: true,
+          vendorName: true,
+          vendor: { select: { name: true } },
+          payments: {
+            select: { id: true, amount: true, date: true, notes: true },
+            orderBy: { date: 'desc' },
+          },
+        },
+      },
       milestones: { orderBy: { dueDate: 'asc' } },
       phases: { orderBy: { sortOrder: 'asc' } },
       projectVendors: { include: { vendor: true } },
@@ -53,7 +67,9 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
     .reduce((s, t) => s + t.amount + t.taxAmount, 0)
   // advancePaid is auto-calculated as the sum of linked expense payments
   const clientPaidLabor = project.laborEntries.reduce((s, entry) => s + entry.advancePaid, 0)
-  const totalPaid = paidToOwner + clientPaidExpenses + clientPaidLabor
+  const clientPaidMaterials = project.materialEntries
+    .reduce((s, entry) => s + entry.payments.reduce((ps, payment) => ps + payment.amount, 0), 0)
+  const totalPaid = paidToOwner + clientPaidExpenses + clientPaidLabor + clientPaidMaterials
   const completedMilestones = project.milestones.filter(m => m.status === 'completed').length
   const remainingBudget = project.budget - totalPaid
 
@@ -176,6 +192,15 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
                   amount: t.amount + t.taxAmount,
                   type: 'labor' as const,
                 })),
+              ...project.materialEntries.flatMap(entry =>
+                entry.payments.map(payment => ({
+                  id: payment.id,
+                  label: payment.notes || entry.vendor?.name || entry.vendorName || entry.description || entry.category || 'Material Payment',
+                  date: payment.date,
+                  amount: payment.amount,
+                  type: 'material' as const,
+                }))
+              ),
             ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
             if (allPayments.length === 0) {
@@ -197,6 +222,9 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
                         )}
                         {t.type === 'labor' && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 font-medium">Labor</span>
+                        )}
+                        {t.type === 'material' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">Material</span>
                         )}
                       </div>
                       <p className="text-xs text-gray-400">{format(new Date(t.date), 'dd MMM yyyy')}</p>

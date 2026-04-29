@@ -65,6 +65,8 @@ export async function createMaterial(projectId: string, _prev: any, formData: Fo
   })
 
   revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/portal`)
+  revalidatePath(`/portal/${projectId}`)
   return { success: true }
 }
 
@@ -90,6 +92,8 @@ export async function updateMaterial(materialId: string, projectId: string, _pre
   })
 
   revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/portal`)
+  revalidatePath(`/portal/${projectId}`)
   return { success: true }
 }
 
@@ -100,6 +104,8 @@ export async function deleteMaterial(materialId: string, projectId: string) {
   await prisma.materialEntry.deleteMany({ where: { id: materialId, projectId } })
 
   revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/portal`)
+  revalidatePath(`/portal/${projectId}`)
   return { success: true }
 }
 
@@ -138,6 +144,8 @@ export async function addMaterialPayment(materialId: string, projectId: string, 
   })
 
   revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/portal`)
+  revalidatePath(`/portal/${projectId}`)
   return { success: true }
 }
 
@@ -148,5 +156,7 @@ export async function deleteMaterialPayment(paymentId: string, projectId: string
   await prisma.materialPayment.delete({ where: { id: paymentId } })
 
   revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/portal`)
+  revalidatePath(`/portal/${projectId}`)
   return { success: true }
 }
