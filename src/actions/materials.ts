@@ -149,6 +149,67 @@ export async function addMaterialPayment(materialId: string, projectId: string, 
   return { success: true }
 }
 
+export async function updateMaterialEntryPayment(materialId: string, paymentId: string, projectId: string, _prev: any, formData: FormData) {
+  const session = await requireAuth()
+  await verifyProject(projectId, session.user.id)
+
+  const payment = await prisma.materialPayment.findFirst({
+    where: { id: paymentId, materialEntry: { id: materialId, projectId } },
+    include: { materialEntry: true },
+  })
+  if (!payment) return { error: 'Material payment not found' }
+
+  const raw = Object.fromEntries(formData)
+  const materialParsed = materialSchema.safeParse({
+    ...raw,
+    notes: raw.materialNotes,
+  })
+  if (!materialParsed.success) return { error: materialParsed.error.issues[0].message }
+
+  const paymentParsed = paymentSchema.safeParse({
+    ...raw,
+    notes: raw.paymentNotes,
+  })
+  if (!paymentParsed.success) return { error: paymentParsed.error.issues[0].message }
+
+  const { billDate, vendorId, phaseId, paidByClient, ...materialData } = materialParsed.data
+  const { date, referenceNumber, ...paymentData } = paymentParsed.data
+
+  const otherPayments = await prisma.materialPayment.findMany({
+    where: { materialEntryId: materialId, id: { not: paymentId } },
+    select: { amount: true },
+  })
+  const otherPaid = otherPayments.reduce((sum, p) => sum + p.amount, 0)
+  if (materialData.billAmount < otherPaid + paymentData.amount) {
+    return { error: 'Bill amount cannot be less than recorded payments' }
+  }
+
+  await prisma.materialEntry.update({
+    where: { id: materialId },
+    data: {
+      ...materialData,
+      billDate: billDate ? new Date(billDate) : null,
+      vendorId: vendorId || null,
+      phaseId: phaseId || null,
+      paidByClient: paidByClient === 'on',
+    },
+  })
+
+  await prisma.materialPayment.update({
+    where: { id: paymentId },
+    data: {
+      ...paymentData,
+      date: new Date(date),
+      referenceNumber: referenceNumber || null,
+    },
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/portal`)
+  revalidatePath(`/portal/${projectId}`)
+  return { success: true }
+}
+
 export async function deleteMaterialPayment(paymentId: string, projectId: string) {
   const session = await requireAuth()
   await verifyProject(projectId, session.user.id)

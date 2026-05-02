@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useActionState } from 'react'
 import { createExpense, updateExpense, deleteExpense, approveExpense, rejectExpense } from '@/actions/expenses'
+import { updateMaterialEntryPayment } from '@/actions/materials'
 import { formatINR } from '@/lib/currency'
 import { getLabelForValue, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
@@ -40,11 +41,19 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
       entryId: entry.id,
       description: entry.description,
       category: entry.category,
+      billAmount: entry.billAmount,
+      billNumber: entry.billNumber,
+      billDate: entry.billDate,
+      notes: entry.notes,
+      phaseId: entry.phaseId,
+      vendorId: entry.vendorId,
       amount: p.amount,
       date: p.date,
       paymentMode: p.paymentMode,
+      paymentNotes: p.notes,
+      referenceNumber: p.referenceNumber,
       paidByClient: entry.paidByClient,
-      vendorName: entry.vendorName,
+      vendorName: entry.vendor?.name || entry.vendorName,
     }))
   )
   const materialPaymentTotal = materialPaymentRows.reduce((s: number, p: any) => s + p.amount, 0)
@@ -183,10 +192,10 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
       ) : (
         <div className="space-y-2">
           {displayRows.map((t: any) => (
-            <Card key={t.id} className={t._isMaterialPayment ? 'border-blue-100 bg-blue-50/30' : undefined}>
+            <Card key={t.id}>
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1" onClick={() => { if (!t._isMaterialPayment) openEdit(t) }} role={t._isMaterialPayment ? undefined : 'button'} tabIndex={t._isMaterialPayment ? undefined : 0}>
+                  <div className="min-w-0 flex-1" onClick={() => openEdit(t)} role="button" tabIndex={0}>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-red-600 tabular-nums">
                         {formatINR(t.amount)}
@@ -200,7 +209,7 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
                         {getLabelForValue(EXPENSE_CATEGORIES, t.category)}
                       </Badge>
                       {t._isMaterialPayment && (
-                        <Badge className="bg-blue-50 text-blue-700">Material Payment</Badge>
+                        <Badge className="bg-gray-50 text-gray-600">Material Payment</Badge>
                       )}
                       {t.isReimbursable && (
                         <Badge className="bg-yellow-50 text-yellow-700">Reimbursable</Badge>
@@ -220,9 +229,7 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
                         </>
                       )}
                     </div>
-                    {t._isMaterialPayment && (
-                      <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>
-                    )}
+                    {t._isMaterialPayment && t.description && <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>}
                     {t.laborEntry && (
                       <div className="flex items-center gap-1 mt-1 text-xs text-blue-600">
                         <Link2 className="w-3 h-3" />
@@ -235,8 +242,10 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
                     {t.notes && <p className="text-xs text-gray-400 mt-0.5">{t.notes}</p>}
                   </div>
                   {t._isMaterialPayment ? (
-                    <div className="shrink-0">
-                      <span className="text-xs text-blue-400 font-medium">Materials tab</span>
+                    <div className="flex gap-1 shrink-0">
+                      <button type="button" onClick={() => openEdit(t)} className="p-2 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 min-w-[40px] min-h-[40px] flex items-center justify-center">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ) : (
                     <div className="flex gap-1 shrink-0">
@@ -258,10 +267,83 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
       )}
 
       {/* Add/Edit Expense Modal */}
-      <Modal open={showForm} onClose={closeForm} title={editItem ? 'Edit Expense' : 'Add Expense'}>
-        <ExpenseForm project={project} editItem={editItem} onClose={closeForm} allVendors={allVendors} allContractors={allContractors} />
+      <Modal open={showForm} onClose={closeForm} title={editItem?._isMaterialPayment ? 'Edit Material Payment' : editItem ? 'Edit Expense' : 'Add Expense'}>
+        {editItem?._isMaterialPayment ? (
+          <MaterialPaymentEditForm project={project} editItem={editItem} onClose={closeForm} allVendors={allVendors} />
+        ) : (
+          <ExpenseForm project={project} editItem={editItem} onClose={closeForm} allVendors={allVendors} allContractors={allContractors} />
+        )}
       </Modal>
     </div>
+  )
+}
+
+function MaterialPaymentEditForm({ project, editItem, onClose, allVendors = [] }: { project: any; editItem: any; onClose: () => void; allVendors?: any[] }) {
+  const action = updateMaterialEntryPayment.bind(null, editItem.entryId, editItem.paymentId, project.id)
+  const [state, formAction, isPending] = useActionState(action, null)
+
+  useEffect(() => {
+    if (state?.success) onClose()
+  }, [state?.success, onClose])
+
+  return (
+    <form action={formAction} className="space-y-3">
+      {state?.error && (
+        <div className="p-2 rounded-lg bg-red-50 text-red-700 text-sm">{state.error}</div>
+      )}
+      <Input name="description" label="Material Description *" placeholder="e.g. Teak wood, hinges, laminate sheets" defaultValue={editItem.description || ''} required />
+      <Select
+        name="category"
+        label="Category"
+        options={EXPENSE_CATEGORIES.filter(c => !['labor', 'subcontractor'].includes(c.value))}
+        defaultValue={editItem.category || 'materials'}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Input name="billAmount" label="Bill Amount (₹) *" type="number" prefix="₹" defaultValue={editItem.billAmount || ''} required />
+        <Input name="billNumber" label="Bill / Invoice No." placeholder="INV-001" defaultValue={editItem.billNumber || ''} />
+      </div>
+      <Input name="billDate" label="Bill Date" type="date" defaultValue={editItem.billDate ? new Date(editItem.billDate).toISOString().split('T')[0] : ''} />
+      {allVendors.length > 0 ? (
+        <Select
+          name="vendorId"
+          label="Vendor"
+          options={[{ value: '', label: 'Select vendor or type below' }, ...allVendors.map(v => ({ value: v.id, label: `${v.name}${v.category ? ` (${v.category})` : ''}` }))]}
+          defaultValue={editItem.vendorId || ''}
+        />
+      ) : null}
+      <Input name="vendorName" label={allVendors.length > 0 ? 'Or enter vendor name' : 'Vendor Name'} placeholder="e.g., Shree Timber Works" defaultValue={editItem.vendorName || ''} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input name="amount" label="Payment Amount (₹) *" type="number" prefix="₹" defaultValue={editItem.amount || ''} required />
+        <Input name="date" label="Payment Date *" type="date" defaultValue={editItem.date ? new Date(editItem.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} required />
+      </div>
+      <Select name="paymentMode" label="Payment Mode" options={[...PAYMENT_MODES]} defaultValue={editItem.paymentMode || 'cash'} />
+      <Input name="referenceNumber" label="Reference / UTR No." placeholder="Optional" defaultValue={editItem.referenceNumber || ''} />
+      {project.phases?.length > 0 && (
+        <Select
+          name="phaseId"
+          label="Project Phase"
+          options={[{ value: '', label: 'Not linked' }, ...project.phases.map((p: any) => ({ value: p.id, label: p.name }))]}
+          defaultValue={editItem.phaseId || ''}
+        />
+      )}
+      <Textarea name="materialNotes" label="Material Notes" placeholder="Specs, dimensions, or other details..." defaultValue={editItem.notes || ''} />
+      <Textarea name="paymentNotes" label="Payment Notes" placeholder="Optional payment note..." defaultValue={editItem.paymentNotes || ''} />
+      <label className="flex items-center gap-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          name="paidByClient"
+          defaultChecked={!!editItem.paidByClient}
+          className="w-4 h-4 rounded border-gray-300 text-brand-600 accent-brand-500"
+        />
+        <span className="text-sm text-gray-700">Client bears this cost <span className="text-xs text-gray-400">(excluded from your P&L)</span></span>
+      </label>
+      <div className="flex gap-2 pt-2">
+        <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+        <Button type="submit" className="flex-1" disabled={isPending}>
+          {isPending ? 'Saving...' : 'Update Material'}
+        </Button>
+      </div>
+    </form>
   )
 }
 
