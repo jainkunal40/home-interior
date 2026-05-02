@@ -299,6 +299,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
     (editItem?.vendorName ? allContractors.find(c => c.name === editItem.vendorName)?.id : '') || ''
   )
   const [selectedMaterialEntryId, setSelectedMaterialEntryId] = useState('')
+  const [materialMode, setMaterialMode] = useState<'existing' | 'new'>('existing')
 
   useEffect(() => {
     if (state?.success) onClose()
@@ -323,6 +324,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
   const showLaborLink = selectedCategory === 'labor' || selectedCategory === 'subcontractor'
   const showContractorSelect = selectedCategory === 'subcontractor' || selectedCategory === 'labor'
   const selectedMaterialEntry = materialEntriesWithDue.find((entry: any) => entry.id === selectedMaterialEntryId)
+  const isNewMaterial = showMaterialLink && materialMode === 'new'
 
   return (
     <form action={formAction} className="space-y-3">
@@ -339,12 +341,27 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
         onChange={(e) => {
           setSelectedCategory(e.target.value)
           setSelectedMaterialEntryId('')
+          setMaterialMode('existing')
         }}
       />
 
       {showMaterialLink && (
         <>
-          {materialEntriesWithDue.length > 0 ? (
+          <Select
+            name="materialMode"
+            label="Material entry"
+            options={[
+              { value: 'existing', label: 'Add payment to existing material' },
+              { value: 'new', label: 'Create new material entry' },
+            ]}
+            defaultValue={materialMode}
+            onChange={(e) => {
+              setMaterialMode(e.target.value as 'existing' | 'new')
+              setSelectedMaterialEntryId('')
+            }}
+          />
+
+          {materialMode === 'existing' && materialEntriesWithDue.length > 0 ? (
             <Select
               name="materialEntryId"
               label="Add payment to material *"
@@ -359,10 +376,15 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
               onChange={(e) => setSelectedMaterialEntryId(e.target.value)}
               required
             />
-          ) : (
+          ) : materialMode === 'existing' ? (
             <div className="p-3 rounded-lg bg-amber-50 text-sm text-amber-700">
-              No existing {getLabelForValue(EXPENSE_CATEGORIES, selectedCategory).toLowerCase()} entry has pending due.
+              No existing {getLabelForValue(EXPENSE_CATEGORIES, selectedCategory).toLowerCase()} entry has pending due. Choose create new material entry.
             </div>
+          ) : (
+            <>
+              <Input name="materialDescription" label="Material Description *" placeholder="e.g. Teak wood, hinges, laminate sheets" required />
+              <Input name="materialBillAmount" label="Bill Amount (₹)" type="number" prefix="₹" placeholder="Defaults to payment amount" />
+            </>
           )}
           {selectedMaterialEntry && (
             <div className="p-3 bg-blue-50 rounded-lg flex items-center justify-between text-sm">
@@ -374,7 +396,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
       )}
 
       {/* Vendor selection */}
-      {!showMaterialLink && !showContractorSelect && vendors.length > 0 ? (
+      {(!showMaterialLink || isNewMaterial) && !showContractorSelect && vendors.length > 0 ? (
         <Select
           name="vendorId"
           label="Vendor"
@@ -382,7 +404,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
           defaultValue={editItem?.vendorId || ''}
         />
       ) : null}
-      {!showMaterialLink && !showContractorSelect && (
+      {(!showMaterialLink || isNewMaterial) && !showContractorSelect && (
         <Input name="vendorName" label={vendors.length > 0 ? 'Or enter vendor name' : 'Vendor Name'} placeholder="e.g., Shree Timber Works" defaultValue={editItem?.vendorName || ''} />
       )}
 
@@ -438,12 +460,14 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
         />
       )}
       <Textarea name="notes" label="Notes" placeholder="Optional notes..." defaultValue={editItem?.notes || ''} />
-      {!showMaterialLink && (
+      {(!showMaterialLink || isNewMaterial) && (
         <>
-          <div className="flex items-center gap-2 py-1">
-            <input type="checkbox" name="isReimbursable" value="true" id="isReimbursable" defaultChecked={editItem?.isReimbursable || false} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-            <label htmlFor="isReimbursable" className="text-sm text-gray-700">Mark as reimbursable</label>
-          </div>
+          {!showMaterialLink && (
+            <div className="flex items-center gap-2 py-1">
+              <input type="checkbox" name="isReimbursable" value="true" id="isReimbursable" defaultChecked={editItem?.isReimbursable || false} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+              <label htmlFor="isReimbursable" className="text-sm text-gray-700">Mark as reimbursable</label>
+            </div>
+          )}
           <div className="flex items-center gap-2 py-1">
             <input type="checkbox" name="paidByClient" value="true" id="paidByClient" defaultChecked={editItem?.paidByClient ?? !!project.clientManagedExpenses} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
             <label htmlFor="paidByClient" className="text-sm text-gray-700">Paid directly by client</label>
@@ -454,7 +478,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
         <Button type="button" variant="outline" onClick={onClose} className="flex-1">
           Cancel
         </Button>
-        <Button type="submit" className="flex-1" disabled={isPending || (showMaterialLink && materialEntriesWithDue.length === 0)}>
+        <Button type="submit" className="flex-1" disabled={isPending || (showMaterialLink && materialMode === 'existing' && materialEntriesWithDue.length === 0)}>
           {isPending ? 'Saving...' : isEdit ? 'Update Expense' : 'Save Expense'}
         </Button>
       </div>

@@ -22,7 +22,18 @@ export async function createExpense(projectId: string, _prev: any, formData: For
   const project = await prisma.project.findFirst({ where: { id: projectId, userId: session.user.id } })
   if (!project) return { error: 'Project not found' }
 
-  const { date, phaseId, vendorId, laborEntryId, contractorId, materialEntryId, ...rest } = parsed.data
+  const {
+    date,
+    phaseId,
+    vendorId,
+    laborEntryId,
+    contractorId,
+    materialEntryId,
+    materialMode,
+    materialDescription,
+    materialBillAmount,
+    ...rest
+  } = parsed.data
 
   // If vendorId is provided, auto-fill vendorName from vendor record
   let vendorName = rest.vendorName
@@ -63,6 +74,57 @@ export async function createExpense(projectId: string, _prev: any, formData: For
 
   const isMaterialCategory = MATERIAL_CATEGORIES.has(rest.category)
   if (isMaterialCategory) {
+    const paymentAmount = rest.amount + (rest.taxAmount || 0)
+
+    if (materialMode === 'new') {
+      const description = materialDescription || rest.notes || vendorName || `${rest.category} purchase`
+      const billAmount = materialBillAmount && materialBillAmount > 0 ? materialBillAmount : paymentAmount
+
+      if (billAmount < paymentAmount) {
+        return { error: 'Material bill amount cannot be less than the payment amount' }
+      }
+
+      const material = await prisma.materialEntry.create({
+        data: {
+          description,
+          category: rest.category,
+          vendorName: vendorName || null,
+          billNumber: rest.billNumber || null,
+          billDate: new Date(date),
+          billAmount,
+          paidByClient: rest.paidByClient,
+          notes: rest.notes || null,
+          phaseId: phaseId || null,
+          vendorId: vendorId || null,
+          projectId,
+          payments: {
+            create: {
+              amount: paymentAmount,
+              date: new Date(date),
+              paymentMode: rest.paymentMode,
+              notes: rest.notes || null,
+            },
+          },
+        },
+      })
+
+      await prisma.activityLog.create({
+        data: {
+          action: 'created',
+          entityType: 'material',
+          entityId: material.id,
+          details: `Material entry added from Expenses: ${description} (Paid: ₹${paymentAmount.toLocaleString('en-IN')})`,
+          userId: session.user.id,
+          projectId,
+        },
+      })
+
+      revalidatePath(`/projects/${projectId}`)
+      revalidatePath(`/portal`)
+      revalidatePath(`/portal/${projectId}`)
+      return { success: true, materialEntryId: material.id }
+    }
+
     if (!materialEntryId) {
       return { error: 'Select an existing material with pending due' }
     }
@@ -75,7 +137,6 @@ export async function createExpense(projectId: string, _prev: any, formData: For
 
     const paid = material.payments.reduce((sum, payment) => sum + payment.amount, 0)
     const due = Math.max(0, material.billAmount - paid)
-    const paymentAmount = rest.amount + (rest.taxAmount || 0)
 
     if (due <= 0) return { error: 'Selected material has no pending due' }
     if (paymentAmount > due) {
@@ -158,7 +219,18 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
   const oldExpense = await prisma.expenseTransaction.findUnique({ where: { id: expenseId } })
   const oldLaborEntryId = oldExpense?.laborEntryId
 
-  const { date, phaseId, vendorId, laborEntryId, contractorId, materialEntryId: _materialEntryId, ...rest } = parsed.data
+  const {
+    date,
+    phaseId,
+    vendorId,
+    laborEntryId,
+    contractorId,
+    materialEntryId: _materialEntryId,
+    materialMode: _materialMode,
+    materialDescription: _materialDescription,
+    materialBillAmount: _materialBillAmount,
+    ...rest
+  } = parsed.data
 
   let vendorName = rest.vendorName
   if (vendorId) {

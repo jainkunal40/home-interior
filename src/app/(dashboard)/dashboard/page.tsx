@@ -41,7 +41,7 @@ export default async function DashboardPage() {
 
   // Compute dashboard summary
   let totalIncome = 0
-  let totalExpenses = 0
+  let totalSpent = 0
   let totalLabor = 0
   let totalOwnerExpenses = 0
   let totalOwnerLabor = 0
@@ -54,12 +54,18 @@ export default async function DashboardPage() {
     const expenses = approved
       .filter((t: any) => !t.laborEntryId)
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
+    const materials = (p.materialEntries ?? [])
+      .reduce((s: number, entry: any) => s + (entry.payments ?? []).reduce((ps: number, payment: any) => ps + payment.amount, 0), 0)
     const labor = p.laborEntries
       .reduce((s: number, t: any) => s + t.totalAmount, 0)
+    const spent = expenses + materials + labor
     // Owner-only for P&L
     const ownerExpenses = approved
       .filter((t: any) => !t.paidByClient && !t.laborEntryId)
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
+      + (p.materialEntries ?? [])
+        .filter((entry: any) => !entry.paidByClient)
+        .reduce((s: number, entry: any) => s + (entry.payments ?? []).reduce((ps: number, payment: any) => ps + payment.amount, 0), 0)
     const ownerLabor = p.laborEntries
       .filter((t: any) => !t.paidByClient)
       .reduce((s: number, t: any) => s + t.totalAmount, 0)
@@ -67,17 +73,17 @@ export default async function DashboardPage() {
     const pendingApprovalCount = p.expenseTransactions.filter((t: any) => t.approvalStatus === 'pending').length
 
     totalIncome += income
-    totalExpenses += expenses
+    totalSpent += spent
     totalLabor += labor
     totalOwnerExpenses += ownerExpenses
     totalOwnerLabor += ownerLabor
     if (p.status === 'active') activeCount++
 
-    return { ...p, income, expenses, labor, profit, pendingApprovalCount }
+    return { ...p, income, expenses, materials, labor, spent, profit, pendingApprovalCount }
   })
 
   const totalProfit = totalIncome - totalOwnerExpenses - totalOwnerLabor
-  const overBudgetProjects = projectSummaries.filter((p: any) => p.budget > 0 && (p.expenses + p.labor) > p.budget)
+  const overBudgetProjects = projectSummaries.filter((p: any) => p.budget > 0 && p.spent > p.budget)
 
   return (
     <div className="space-y-6">
@@ -106,8 +112,8 @@ export default async function DashboardPage() {
           trend="up"
         />
         <SummaryCard
-          label="Total Expenses"
-          value={totalExpenses}
+          label="Total Spent"
+          value={totalSpent}
           icon={<Wallet className="w-4 h-4" />}
           trend="down"
         />
@@ -135,8 +141,7 @@ export default async function DashboardPage() {
             </div>
             <div className="space-y-1.5">
               {overBudgetProjects.map((p: any) => {
-                const spent = p.expenses + p.labor
-                const overBy = spent - p.budget
+                const overBy = p.spent - p.budget
                 return (
                   <Link key={p.id} href={`/projects/${p.id}`} className="flex justify-between items-center text-sm hover:bg-red-100/50 rounded px-1 -mx-1">
                     <span className="text-gray-700 truncate">{p.name}</span>
@@ -221,7 +226,7 @@ export default async function DashboardPage() {
                       <div className="flex justify-between">
                         <span className="text-dark-500">Total Spent</span>
                         <span className="font-medium text-red-600 tabular-nums">
-                          {formatINRCompact(p.expenses + p.labor)}
+                          {formatINRCompact(p.spent)}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -239,7 +244,7 @@ export default async function DashboardPage() {
                       <div className="flex gap-3 text-xs text-dark-400">
                         {p.budget > 0 && (
                           <span>
-                            {Math.round(((p.expenses + p.labor) / p.budget) * 100)}% spent
+                            {Math.round((p.spent / p.budget) * 100)}% spent
                           </span>
                         )}
                         <span>{p._count.milestones} milestones</span>
