@@ -6,6 +6,7 @@ import { projectSchema } from '@/lib/validations'
 import { PHASE_NAMES } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
+import { z } from 'zod'
 
 function generatePassword(length = 8): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
@@ -58,10 +59,12 @@ export async function getProjects(search?: string, status?: string) {
       laborEntries: { select: { totalAmount: true, paidByClient: true } },
       materialEntries: {
         select: {
+          billAmount: true,
           paidByClient: true,
           payments: { select: { amount: true } },
         },
       },
+      milestones: { select: { status: true } },
       _count: { select: { milestones: true, attachments: true, notes: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -259,6 +262,32 @@ export async function updateProject(id: string, _prev: any, formData: FormData) 
   return { success: true, clientPassword, clientEmail: clientEmail || undefined }
 }
 
+const budgetCategorySchema = z.object({
+  materials: z.coerce.number().min(0).default(0),
+  labor: z.coerce.number().min(0).default(0),
+  furnishing: z.coerce.number().min(0).default(0),
+  transport: z.coerce.number().min(0).default(0),
+  site_expense: z.coerce.number().min(0).default(0),
+})
+
+export async function updateBudgetCategories(projectId: string, _prev: any, formData: FormData) {
+  const session = await requireAuth()
+  const parsed = budgetCategorySchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const project = await prisma.project.findFirst({ where: { id: projectId, userId: session.user.id }, select: { id: true } })
+  if (!project) return { error: 'Project not found' }
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { budgetCategories: parsed.data },
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
 export async function deleteProject(id: string) {
   const session = await requireAuth()
   await prisma.project.deleteMany({ where: { id, userId: session.user.id } })
@@ -283,6 +312,7 @@ export async function duplicateProject(id: string) {
       siteAddress: source.siteAddress,
       status: 'planning',
       budget: source.budget,
+      budgetCategories: source.budgetCategories as any,
       clientManagedExpenses: source.clientManagedExpenses,
       userId: session.user.id,
     },

@@ -6,7 +6,7 @@ import { getStatusColor, getLabelForValue, PROJECT_STATUSES, MILESTONE_STATUSES 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { SummaryCard } from '@/components/ui/summary-card'
-import { ArrowLeft, CheckCircle, Clock, IndianRupee, Wallet, Receipt, AlertCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Clock, IndianRupee, Wallet, Receipt, AlertCircle, Camera } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ClientExpenseForm } from './client-expense-form'
@@ -48,6 +48,12 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       },
       milestones: { orderBy: { dueDate: 'asc' } },
       phases: { orderBy: { sortOrder: 'asc' } },
+      attachments: {
+        where: { OR: [{ category: 'photo' }, { fileType: { startsWith: 'image/' } }] },
+        select: { id: true, fileName: true, fileUrl: true, createdAt: true, category: true },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      },
       projectVendors: { include: { vendor: true } },
       projectContractors: { include: { contractor: true } },
     },
@@ -72,6 +78,37 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
   const totalPaid = paidToOwner + clientPaidExpenses + clientPaidLabor + clientPaidMaterials
   const completedMilestones = project.milestones.filter(m => m.status === 'completed').length
   const remainingBudget = project.budget - totalPaid
+  const timelineItems = [
+    ...project.phases.map(phase => ({
+      id: `phase-${phase.id}`,
+      date: phase.updatedAt,
+      title: phase.name,
+      detail: phase.status === 'completed' ? 'Phase completed' : phase.status === 'in_progress' ? 'Phase in progress' : 'Phase planned',
+      type: 'phase' as const,
+    })),
+    ...project.milestones.map(m => ({
+      id: `milestone-${m.id}`,
+      date: m.completionDate || m.dueDate || m.updatedAt,
+      title: m.title,
+      detail: getLabelForValue(MILESTONE_STATUSES, m.status),
+      type: 'milestone' as const,
+    })),
+    ...project.attachments.map(a => ({
+      id: `photo-${a.id}`,
+      date: a.createdAt,
+      title: a.fileName,
+      detail: 'Photo uploaded',
+      type: 'photo' as const,
+      url: a.fileUrl,
+    })),
+    ...approvedExpenses.map(t => ({
+      id: `expense-${t.id}`,
+      date: t.date,
+      title: t.notes || t.vendor?.name || getLabelForValue(PROJECT_STATUSES, project.status),
+      detail: `Approved expense · ${formatINR(t.amount + t.taxAmount)}`,
+      type: 'expense' as const,
+    })),
+  ].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime()).slice(0, 12)
 
   return (
     <div className="space-y-6">
@@ -161,6 +198,37 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
       )}
 
       {/* Payment History */}
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="font-semibold text-gray-900 mb-3">Project Timeline</h2>
+          {timelineItems.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">No timeline activity yet</p>
+          ) : (
+            <div className="space-y-3">
+              {timelineItems.map((item) => (
+                <div key={item.id} className="flex gap-3">
+                  <div className="mt-1 w-2.5 h-2.5 rounded-full bg-brand-500 shrink-0" />
+                  <div className="min-w-0 flex-1 border-b border-gray-50 pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
+                      <span className="text-[10px] uppercase tracking-wide text-gray-400">{item.type}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">{item.detail}</p>
+                    {item.date && <p className="text-xs text-gray-400 mt-0.5">{format(new Date(item.date), 'dd MMM yyyy')}</p>}
+                    {item.type === 'photo' && item.url && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
+                        <Camera className="w-3.5 h-3.5" />
+                        <a href={item.url} target="_blank" rel="noreferrer" className="hover:underline">View photo</a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="p-4">
           <h2 className="font-semibold text-gray-900 mb-3">Payment History</h2>

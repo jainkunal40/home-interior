@@ -17,6 +17,9 @@ import {
   FileText,
   Activity,
   Package,
+  ClipboardList,
+  AlertTriangle,
+  BookOpen,
 } from 'lucide-react'
 import Link from 'next/link'
 import { OverviewTab } from './tabs/overview-tab'
@@ -29,6 +32,9 @@ import { NotesTab } from './tabs/notes-tab'
 import { ReportsTab } from './tabs/reports-tab'
 import { ActivityTab } from './tabs/activity-tab'
 import { MaterialsTab } from './tabs/materials-tab'
+import { ForecastTab } from './tabs/forecast-tab'
+import { PayablesTab } from './tabs/payables-tab'
+import { LedgerTab } from './tabs/ledger-tab'
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -36,6 +42,9 @@ const tabs = [
   { id: 'expenses', label: 'Expenses', icon: Wallet },
   { id: 'labor', label: 'Labor', icon: Users },
   { id: 'materials', label: 'Materials', icon: Package },
+  { id: 'forecast', label: 'Forecast', icon: AlertTriangle },
+  { id: 'payables', label: 'Payables', icon: ClipboardList },
+  { id: 'ledger', label: 'Ledger', icon: BookOpen },
   { id: 'milestones', label: 'Milestones', icon: Flag },
   { id: 'attachments', label: 'Files', icon: Paperclip },
   { id: 'notes', label: 'Notes', icon: MessageSquare },
@@ -151,6 +160,9 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
         {activeTab === 'expenses' && <ExpensesTab project={project} allVendors={allVendors} allContractors={allContractors} />}
         {activeTab === 'labor' && <LaborTab project={project} allContractors={allContractors} />}
         {activeTab === 'materials' && <MaterialsTab project={project} allVendors={allVendors} />}
+        {activeTab === 'forecast' && <ForecastTab project={project} />}
+        {activeTab === 'payables' && <PayablesTab project={project} />}
+        {activeTab === 'ledger' && <LedgerTab project={project} />}
         {activeTab === 'milestones' && <MilestonesTab project={project} />}
         {activeTab === 'attachments' && <AttachmentsTab project={project} />}
         {activeTab === 'notes' && <NotesTab project={project} />}

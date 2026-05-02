@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatINR } from '@/lib/currency'
 import { getLabelForValue, EXPENSE_CATEGORIES, TRADE_TYPES } from '@/lib/utils'
-import { Download, TrendingUp, TrendingDown, AlertTriangle, PieChart, FileSpreadsheet } from 'lucide-react'
+import { Download, TrendingUp, TrendingDown, AlertTriangle, PieChart, FileSpreadsheet, FileText } from 'lucide-react'
 
 interface ReportsTabProps {
   project: any
@@ -177,6 +177,14 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
                 {t.charAt(0).toUpperCase() + t.slice(1)}
               </a>
             ))}
+            <a
+              href={`/api/statement?projectId=${project.id}`}
+              download
+              className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:border-brand-400 hover:text-brand-600 transition-colors flex items-center gap-1"
+            >
+              <FileText className="w-3 h-3" />
+              Statement
+            </a>
           </div>
           <Button size="sm" variant="outline" onClick={exportCSV}>
             <Download className="w-4 h-4" />

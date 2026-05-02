@@ -19,7 +19,7 @@ import {
   Clock,
 } from 'lucide-react'
 import Link from 'next/link'
-import { addDays } from 'date-fns'
+import { addDays, differenceInCalendarDays } from 'date-fns'
 
 export default async function DashboardPage() {
   const session = await requireAuth()
@@ -54,6 +54,10 @@ export default async function DashboardPage() {
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
     const materials = (p.materialEntries ?? [])
       .reduce((s: number, entry: any) => s + (entry.payments ?? []).reduce((ps: number, payment: any) => ps + payment.amount, 0), 0)
+    const unpaidMaterialBills = (p.materialEntries ?? []).filter((entry: any) => {
+      const paid = (entry.payments ?? []).reduce((ps: number, payment: any) => ps + payment.amount, 0)
+      return entry.billAmount > paid
+    }).length
     const labor = p.laborEntries
       .reduce((s: number, t: any) => s + t.totalAmount, 0)
     const spent = expenses + materials + labor
@@ -69,6 +73,9 @@ export default async function DashboardPage() {
       .reduce((s: number, t: any) => s + t.totalAmount, 0)
     const profit = income - ownerExpenses - ownerLabor
     const pendingApprovalCount = p.expenseTransactions.filter((t: any) => t.approvalStatus === 'pending').length
+    const pendingApprovalTotal = p.expenseTransactions
+      .filter((t: any) => t.approvalStatus === 'pending')
+      .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
 
     totalIncome += income
     totalSpent += spent
@@ -76,12 +83,23 @@ export default async function DashboardPage() {
     totalOwnerLabor += ownerLabor
     if (p.status === 'active') activeCount++
 
-    return { ...p, income, expenses, materials, labor, spent, profit, pendingApprovalCount }
+    return { ...p, income, expenses, materials, labor, spent, profit, pendingApprovalCount, pendingApprovalTotal, unpaidMaterialBills }
   })
 
   const totalProfit = totalIncome - totalOwnerExpenses - totalOwnerLabor
   const totalFromMyPocket = totalOwnerExpenses + totalOwnerLabor
   const overBudgetProjects = projectSummaries.filter((p: any) => p.budget > 0 && p.spent > p.budget)
+  const smartAlerts = projectSummaries.flatMap((p: any) => {
+    const alerts: { href: string; text: string; tone: 'red' | 'amber' | 'blue' }[] = []
+    if (p.unpaidMaterialBills > 0) alerts.push({ href: `/projects/${p.id}?tab=payables`, text: `${p.name}: ${p.unpaidMaterialBills} material bill${p.unpaidMaterialBills !== 1 ? 's' : ''} unpaid`, tone: 'amber' })
+    if (p.budget > 0) {
+      const used = Math.round((p.spent / p.budget) * 100)
+      if (used >= 80) alerts.push({ href: `/projects/${p.id}?tab=forecast`, text: `${p.name}: ${used}% budget used`, tone: used > 100 ? 'red' : 'amber' })
+    }
+    if (p.pendingApprovalTotal > 0) alerts.push({ href: `/projects/${p.id}?tab=expenses`, text: `${p.name}: ${formatINRCompact(p.pendingApprovalTotal)} pending approval`, tone: 'blue' })
+    if (p.status === 'active' && differenceInCalendarDays(now, new Date(p.updatedAt)) > 10) alerts.push({ href: `/projects/${p.id}`, text: `${p.name}: no progress update in ${differenceInCalendarDays(now, new Date(p.updatedAt))} days`, tone: 'amber' })
+    return alerts
+  }).slice(0, 6)
 
   return (
     <div className="space-y-6">
@@ -128,6 +146,24 @@ export default async function DashboardPage() {
           trend={totalProfit >= 0 ? 'up' : 'down'}
         />
       </div>
+
+      {smartAlerts.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <h3 className="text-sm font-semibold text-gray-700">Smart Alerts</h3>
+            </div>
+            <div className="space-y-1.5">
+              {smartAlerts.map((alert, i) => (
+                <Link key={`${alert.href}-${i}`} href={alert.href} className="block text-sm text-gray-700 hover:bg-gray-50 rounded px-1 -mx-1">
+                  {alert.text}
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Budget Alerts */}
       {overBudgetProjects.length > 0 && (
