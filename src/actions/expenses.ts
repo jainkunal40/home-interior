@@ -7,6 +7,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { notifyExpensePendingApproval, notifyExpenseApprovalStatus } from '@/lib/notifications'
 
+const MATERIAL_CATEGORIES = new Set(['materials', 'hardware', 'furnishing'])
+
 export async function createExpense(projectId: string, _prev: any, formData: FormData) {
   const session = await requireAuth()
   const raw = Object.fromEntries(formData)
@@ -20,7 +22,7 @@ export async function createExpense(projectId: string, _prev: any, formData: For
   const project = await prisma.project.findFirst({ where: { id: projectId, userId: session.user.id } })
   if (!project) return { error: 'Project not found' }
 
-  const { date, phaseId, vendorId, laborEntryId, contractorId, ...rest } = parsed.data
+  const { date, phaseId, vendorId, laborEntryId, contractorId, materialEntryId, ...rest } = parsed.data
 
   // If vendorId is provided, auto-fill vendorName from vendor record
   let vendorName = rest.vendorName
@@ -59,6 +61,54 @@ export async function createExpense(projectId: string, _prev: any, formData: For
     }
   }
 
+  const isMaterialCategory = MATERIAL_CATEGORIES.has(rest.category)
+  if (isMaterialCategory) {
+    if (!materialEntryId) {
+      return { error: 'Select an existing material with pending due' }
+    }
+
+    const material = await prisma.materialEntry.findFirst({
+      where: { id: materialEntryId, projectId },
+      include: { payments: { select: { amount: true } } },
+    })
+    if (!material) return { error: 'Material entry not found' }
+
+    const paid = material.payments.reduce((sum, payment) => sum + payment.amount, 0)
+    const due = Math.max(0, material.billAmount - paid)
+    const paymentAmount = rest.amount + (rest.taxAmount || 0)
+
+    if (due <= 0) return { error: 'Selected material has no pending due' }
+    if (paymentAmount > due) {
+      return { error: `Payment exceeds pending due of ₹${due.toLocaleString('en-IN')}` }
+    }
+
+    const payment = await prisma.materialPayment.create({
+      data: {
+        amount: paymentAmount,
+        date: new Date(date),
+        paymentMode: rest.paymentMode,
+        notes: rest.notes || rest.billNumber ? [rest.notes, rest.billNumber ? `Bill: ${rest.billNumber}` : ''].filter(Boolean).join(' · ') : null,
+        materialEntryId: material.id,
+      },
+    })
+
+    await prisma.activityLog.create({
+      data: {
+        action: 'payment_received',
+        entityType: 'material',
+        entityId: material.id,
+        details: `Material payment of ₹${paymentAmount.toLocaleString('en-IN')} added from Expenses for "${material.description}"`,
+        userId: session.user.id,
+        projectId,
+      },
+    })
+
+    revalidatePath(`/projects/${projectId}`)
+    revalidatePath(`/portal`)
+    revalidatePath(`/portal/${projectId}`)
+    return { success: true, materialPaymentId: payment.id }
+  }
+
   const expense = await prisma.expenseTransaction.create({
     data: {
       ...rest,
@@ -89,6 +139,8 @@ export async function createExpense(projectId: string, _prev: any, formData: For
   })
 
   revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/portal`)
+  revalidatePath(`/portal/${projectId}`)
   return { success: true }
 }
 
@@ -106,7 +158,7 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
   const oldExpense = await prisma.expenseTransaction.findUnique({ where: { id: expenseId } })
   const oldLaborEntryId = oldExpense?.laborEntryId
 
-  const { date, phaseId, vendorId, laborEntryId, contractorId, ...rest } = parsed.data
+  const { date, phaseId, vendorId, laborEntryId, contractorId, materialEntryId: _materialEntryId, ...rest } = parsed.data
 
   let vendorName = rest.vendorName
   if (vendorId) {
