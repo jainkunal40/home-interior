@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Modal } from '@/components/ui/modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Wallet, Trash2, Edit2, Link2, CheckCircle, XCircle, Package } from 'lucide-react'
+import { Plus, Wallet, Trash2, Edit2, Link2, CheckCircle, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
 // Categories that now live in the Materials tab — excluded from Expenses
@@ -31,15 +31,12 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
     (e: any) => e.approvalStatus === 'pending' && !MATERIAL_CATEGORY_SET.has(e.category)
   )
 
-  const expenses = filterCategory === 'all'
-    ? approvedTransactions
-    : approvedTransactions.filter((e: any) => e.category === filterCategory)
-
   // Flatten material entry payments into display rows (read-only)
   const materialPaymentRows = (project.materialEntries ?? []).flatMap((entry: any) =>
     (entry.payments ?? []).map((p: any) => ({
       _isMaterialPayment: true,
-      id: p.id,
+      id: `material-${p.id}`,
+      paymentId: p.id,
       entryId: entry.id,
       description: entry.description,
       category: entry.category,
@@ -51,16 +48,26 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
     }))
   )
   const materialPaymentTotal = materialPaymentRows.reduce((s: number, p: any) => s + p.amount, 0)
+  const displayRows = [
+    ...approvedTransactions.map((t: any) => ({ ...t, _isMaterialPayment: false })),
+    ...materialPaymentRows,
+  ]
+    .filter((row: any) => filterCategory === 'all' || row.category === filterCategory)
+    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const total = approvedTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0) + materialPaymentTotal
   const pendingTotal = pendingTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
-  const filteredTotal = expenses.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
+  const filteredTotal = displayRows.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
 
   // Category breakdown (approved only)
   const categoryBreakdown: Record<string, number> = {}
   for (const exp of approvedTransactions) {
     const cat = exp.category || 'misc'
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
+  }
+  for (const payment of materialPaymentRows) {
+    const cat = payment.category || 'materials'
+    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + payment.amount
   }
   const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])
 
@@ -166,7 +173,7 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
         </p>
       )}
 
-      {expenses.length === 0 ? (
+      {displayRows.length === 0 ? (
         <EmptyState
           icon={<Wallet className="w-12 h-12" />}
           title={filterCategory !== 'all' ? 'No expenses in this category' : 'No expenses recorded'}
@@ -175,11 +182,11 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
         />
       ) : (
         <div className="space-y-2">
-          {expenses.map((t: any) => (
-            <Card key={t.id}>
+          {displayRows.map((t: any) => (
+            <Card key={t.id} className={t._isMaterialPayment ? 'border-blue-100 bg-blue-50/30' : undefined}>
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1" onClick={() => openEdit(t)} role="button" tabIndex={0}>
+                  <div className="min-w-0 flex-1" onClick={() => { if (!t._isMaterialPayment) openEdit(t) }} role={t._isMaterialPayment ? undefined : 'button'} tabIndex={t._isMaterialPayment ? undefined : 0}>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-red-600 tabular-nums">
                         {formatINR(t.amount)}
@@ -192,6 +199,9 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
                       <Badge className="bg-red-50 text-red-700">
                         {getLabelForValue(EXPENSE_CATEGORIES, t.category)}
                       </Badge>
+                      {t._isMaterialPayment && (
+                        <Badge className="bg-blue-50 text-blue-700">Material Payment</Badge>
+                      )}
                       {t.isReimbursable && (
                         <Badge className="bg-yellow-50 text-yellow-700">Reimbursable</Badge>
                       )}
@@ -210,6 +220,9 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
                         </>
                       )}
                     </div>
+                    {t._isMaterialPayment && (
+                      <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>
+                    )}
                     {t.laborEntry && (
                       <div className="flex items-center gap-1 mt-1 text-xs text-blue-600">
                         <Link2 className="w-3 h-3" />
@@ -221,61 +234,26 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
                     )}
                     {t.notes && <p className="text-xs text-gray-400 mt-0.5">{t.notes}</p>}
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button type="button" onClick={() => openEdit(t)} className="p-2 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 min-w-[40px] min-h-[40px] flex items-center justify-center">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <form action={async () => { if (confirm('Delete this expense?')) await deleteExpense(t.id, project.id) }}>
-                      <button type="submit" className="p-2 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 min-w-[40px] min-h-[40px] flex items-center justify-center">
-                        <Trash2 className="w-4 h-4" />
+                  {t._isMaterialPayment ? (
+                    <div className="shrink-0">
+                      <span className="text-xs text-blue-400 font-medium">Materials tab</span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1 shrink-0">
+                      <button type="button" onClick={() => openEdit(t)} className="p-2 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 min-w-[40px] min-h-[40px] flex items-center justify-center">
+                        <Edit2 className="w-4 h-4" />
                       </button>
-                    </form>
-                  </div>
+                      <form action={async () => { if (confirm('Delete this expense?')) await deleteExpense(t.id, project.id) }}>
+                        <button type="submit" className="p-2 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 min-w-[40px] min-h-[40px] flex items-center justify-center">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </form>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           ))}
-        </div>
-      )}
-
-      {/* Material Payments (read-only — manage from Materials tab) */}
-      {materialPaymentRows.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Package className="w-3.5 h-3.5" />
-            Material Payments
-          </h4>
-          {materialPaymentRows
-            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .map((p: any) => (
-              <Card key={p.id} className="border-blue-100 bg-blue-50/30">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-red-600 tabular-nums">{formatINR(p.amount)}</span>
-                        <Badge className="bg-blue-50 text-blue-700 capitalize">
-                          {getLabelForValue(EXPENSE_CATEGORIES, p.category) || p.category}
-                        </Badge>
-                        {p.paidByClient && (
-                          <Badge className="bg-purple-50 text-purple-700">Client Paid</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 flex-wrap">
-                        <span>{format(new Date(p.date), 'dd MMM yyyy')}</span>
-                        <span>·</span>
-                        <span>{getLabelForValue(PAYMENT_MODES, p.paymentMode)}</span>
-                        {p.vendorName && <><span>·</span><span>{p.vendorName}</span></>}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{p.description}</p>
-                    </div>
-                    <div className="shrink-0">
-                      <span className="text-xs text-blue-400 font-medium">Materials tab</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
         </div>
       )}
 
