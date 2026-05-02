@@ -10,7 +10,6 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import {
   TrendingUp,
-  TrendingDown,
   Wallet,
   IndianRupee,
   FolderOpen,
@@ -42,7 +41,6 @@ export default async function DashboardPage() {
   // Compute dashboard summary
   let totalIncome = 0
   let totalSpent = 0
-  let totalLabor = 0
   let totalOwnerExpenses = 0
   let totalOwnerLabor = 0
   let activeCount = 0
@@ -74,7 +72,6 @@ export default async function DashboardPage() {
 
     totalIncome += income
     totalSpent += spent
-    totalLabor += labor
     totalOwnerExpenses += ownerExpenses
     totalOwnerLabor += ownerLabor
     if (p.status === 'active') activeCount++
@@ -83,6 +80,7 @@ export default async function DashboardPage() {
   })
 
   const totalProfit = totalIncome - totalOwnerExpenses - totalOwnerLabor
+  const totalFromMyPocket = totalOwnerExpenses + totalOwnerLabor
   const overBudgetProjects = projectSummaries.filter((p: any) => p.budget > 0 && p.spent > p.budget)
 
   return (
@@ -118,9 +116,9 @@ export default async function DashboardPage() {
           trend="down"
         />
         <SummaryCard
-          label="Labor Cost"
-          value={totalLabor}
-          icon={<TrendingDown className="w-4 h-4" />}
+          label="From My Pocket"
+          value={totalFromMyPocket}
+          icon={<Wallet className="w-4 h-4" />}
           trend="down"
         />
         <SummaryCard
