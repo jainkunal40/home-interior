@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Wallet, Trash2, Edit2, Link2, CheckCircle, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
-// Categories that now live in the Materials tab — excluded from Expenses
+// Approved material-category transactions live in the Materials workflow.
 const MATERIAL_CATEGORY_SET = new Set(['materials', 'hardware', 'furnishing'])
 
 export function ExpensesTab({ project, allVendors = [], allContractors = [] }: { project: any; allVendors?: any[]; allContractors?: any[] }) {
@@ -24,12 +24,12 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
   const [editItem, setEditItem] = useState<any>(null)
   const [filterCategory, setFilterCategory] = useState<string>('all')
 
-  // Separate approved vs pending expenses — exclude material-category rows (now in Materials tab)
+  // Approved material-category rows are excluded here, but pending client submissions still need approval controls.
   const approvedTransactions = project.expenseTransactions.filter(
     (e: any) => e.approvalStatus !== 'pending' && e.approvalStatus !== 'rejected' && !MATERIAL_CATEGORY_SET.has(e.category)
   )
   const pendingTransactions = project.expenseTransactions.filter(
-    (e: any) => e.approvalStatus === 'pending' && !MATERIAL_CATEGORY_SET.has(e.category)
+    (e: any) => e.approvalStatus === 'pending'
   )
 
   // Flatten material entry payments into display rows (read-only)
