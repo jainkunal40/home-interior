@@ -5,7 +5,9 @@ import {
   createMaterial, updateMaterial, deleteMaterial,
   addMaterialPayment, deleteMaterialPayment,
 } from '@/actions/materials'
+import { updateExpense, deleteExpense } from '@/actions/expenses'
 import { formatINR } from '@/lib/currency'
+import { isCountedExpense, materialBillTotal, materialDueTotal, materialPaymentTotal, sumExpenses } from '@/lib/finance'
 import { EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,6 +30,7 @@ export function MaterialsTab({ project, allVendors = [] }: { project: any; allVe
   const [editItem, setEditItem] = useState<any>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [paymentFor, setPaymentFor] = useState<any>(null)
+  const [editExpense, setEditExpense] = useState<any>(null)
 
   const entries: any[] = project.materialEntries ?? []
 
@@ -39,10 +42,10 @@ export function MaterialsTab({ project, allVendors = [] }: { project: any; allVe
       e.approvalStatus !== 'rejected'
   )
 
-  const totalBill = entries.reduce((s, e) => s + e.billAmount, 0)
-  const totalPaid = entries.reduce((s, e) => s + e.payments.reduce((ps: number, p: any) => ps + p.amount, 0), 0)
-  const totalPending = totalBill - totalPaid
-  const totalExpenses = expenseRows.reduce((s: number, e: any) => s + e.amount + (e.taxAmount ?? 0), 0)
+  const totalBill = materialBillTotal(entries)
+  const totalPaid = materialPaymentTotal(entries)
+  const totalPending = materialDueTotal(entries)
+  const totalExpenses = sumExpenses(expenseRows.filter(isCountedExpense))
   const grandTotal = totalBill + totalExpenses
 
   function openAdd() { setEditItem(null); setShowForm(true) }
@@ -287,6 +290,23 @@ export function MaterialsTab({ project, allVendors = [] }: { project: any; allVe
                       </div>
                       <div className="flex items-center gap-1">
                         <Badge className="bg-green-100 text-green-700 text-xs">Paid</Badge>
+                        <button
+                          type="button"
+                          onClick={() => setEditExpense(exp)}
+                          className="p-2 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                          title="Edit one-off expense"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <form action={async () => { if (confirm('Delete this one-off expense?')) await deleteExpense(exp.id, project.id) }}>
+                          <button
+                            type="submit"
+                            className="p-2 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                            title="Delete one-off expense"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </form>
                       </div>
                     </div>
                   </CardContent>
@@ -295,7 +315,7 @@ export function MaterialsTab({ project, allVendors = [] }: { project: any; allVe
             })}
           </div>
           <p className="text-xs text-gray-400 text-center">
-            These are one-off expenses from the Expenses tab. Edit them there.
+            Legacy material-category expenses. Edit them here; new material spend belongs in Material Entries above.
           </p>
         </div>
       )}
@@ -311,7 +331,80 @@ export function MaterialsTab({ project, allVendors = [] }: { project: any; allVe
           <PaymentForm entry={paymentFor} projectId={project.id} onClose={() => setPaymentFor(null)} />
         )}
       </Modal>
+
+      {/* Edit legacy one-off material expense */}
+      <Modal open={!!editExpense} onClose={() => setEditExpense(null)} title="Edit One-Off Material Expense">
+        {editExpense && (
+          <LegacyMaterialExpenseForm
+            project={project}
+            expense={editExpense}
+            allVendors={allVendors}
+            onClose={() => setEditExpense(null)}
+          />
+        )}
+      </Modal>
     </div>
+  )
+}
+
+function LegacyMaterialExpenseForm({
+  project, expense, onClose, allVendors = [],
+}: { project: any; expense: any; onClose: () => void; allVendors?: any[] }) {
+  const action = updateExpense.bind(null, expense.id, project.id)
+  const [state, formAction, isPending] = useActionState(action, null)
+
+  useEffect(() => {
+    if (state?.success) onClose()
+  }, [state?.success, onClose])
+
+  return (
+    <form action={formAction} className="space-y-3">
+      {state?.error && (
+        <div className="p-2 rounded-lg bg-red-50 text-red-700 text-sm">{state.error}</div>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <Input name="amount" label="Amount (₹) *" type="number" prefix="₹" defaultValue={expense.amount} required />
+        <Input name="date" label="Date *" type="date" defaultValue={new Date(expense.date).toISOString().split('T')[0]} required />
+      </div>
+      <Select name="category" label="Category *" options={MATERIAL_CATEGORIES} defaultValue={expense.category} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input name="taxAmount" label="Tax / GST (₹)" type="number" prefix="₹" defaultValue={expense.taxAmount ?? 0} />
+        <Input name="billNumber" label="Bill / Invoice No." defaultValue={expense.billNumber ?? ''} />
+      </div>
+      {allVendors.length > 0 && (
+        <Select
+          name="vendorId"
+          label="Vendor"
+          options={[{ value: '', label: 'Select vendor or type below' }, ...allVendors.map(v => ({ value: v.id, label: `${v.name}${v.category ? ` (${v.category})` : ''}` }))]}
+          defaultValue={expense.vendorId ?? ''}
+        />
+      )}
+      <Input name="vendorName" label={allVendors.length > 0 ? 'Or Vendor Name' : 'Vendor Name'} defaultValue={expense.vendorName ?? ''} />
+      <Select name="paymentMode" label="Payment Mode *" options={[...PAYMENT_MODES]} defaultValue={expense.paymentMode} />
+      {project.phases?.length > 0 && (
+        <Select
+          name="phaseId"
+          label="Project Phase"
+          options={[{ value: '', label: 'Not linked' }, ...project.phases.map((p: any) => ({ value: p.id, label: p.name }))]}
+          defaultValue={expense.phaseId ?? ''}
+        />
+      )}
+      <Textarea name="notes" label="Notes" defaultValue={expense.notes ?? ''} />
+      <div className="flex items-center gap-2 py-1">
+        <input type="checkbox" name="isReimbursable" value="true" id="legacyIsReimbursable" defaultChecked={!!expense.isReimbursable} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <label htmlFor="legacyIsReimbursable" className="text-sm text-gray-700">Mark as reimbursable</label>
+      </div>
+      <div className="flex items-center gap-2 py-1">
+        <input type="checkbox" name="paidByClient" value="true" id="legacyPaidByClient" defaultChecked={!!expense.paidByClient} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <label htmlFor="legacyPaidByClient" className="text-sm text-gray-700">Paid directly by client</label>
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+        <Button type="submit" className="flex-1" disabled={isPending}>
+          {isPending ? 'Saving...' : 'Update Expense'}
+        </Button>
+      </div>
+    </form>
   )
 }
 

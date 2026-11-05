@@ -7,11 +7,11 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
 const profileSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email'),
-  phone: z.string().optional(),
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  email: z.string().trim().email('Invalid email'),
+  phone: z.string().trim().optional(),
   notificationChannel: z.enum(['none', 'whatsapp', 'telegram']).default('none'),
-  telegramChatId: z.string().optional(),
+  telegramChatId: z.string().trim().optional(),
 })
 
 const passwordSchema = z.object({

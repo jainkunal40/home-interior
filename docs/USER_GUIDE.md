@@ -1,7 +1,7 @@
 # SiteBooks (Explore Interiors) — User Guide
 
-> **Version:** 1.0.0  
-> **Last Updated:** April 2026  
+> **Guide Version:** 2.0.0 · **App Version:** 1.0.0  
+> **Last Updated:** November 2026  
 > A complete project finance tracker for interior designers and construction professionals.
 
 ---
@@ -16,10 +16,15 @@
    - [Income](#42-income-tab)
    - [Expenses](#43-expenses-tab)
    - [Labor & Contractors](#44-labor--contractors-tab)
-   - [Milestones](#45-milestones-tab)
-   - [Attachments / Files](#46-attachments--files-tab)
-   - [Notes](#47-notes-tab)
-   - [Reports & Export](#48-reports--export-tab)
+   - [Materials](#45-materials-tab)
+   - [Forecast](#46-forecast-tab)
+   - [Payables](#47-payables-tab)
+   - [Ledger](#48-ledger-tab)
+   - [Milestones](#49-milestones-tab)
+   - [Attachments / Files](#410-attachments--files-tab)
+   - [Notes](#411-notes-tab)
+   - [Reports & Export](#412-reports--export-tab)
+   - [Activity](#413-activity-tab)
 5. [Vendors Management](#5-vendors-management)
 6. [Contractors Management](#6-contractors-management)
 7. [Assigning Vendors & Contractors to Projects](#7-assigning-vendors--contractors-to-projects)
@@ -52,19 +57,21 @@
 
 ## 2. Dashboard
 
-The Dashboard is your home screen. It gives you a bird's-eye view of all your projects and finances.
+The Dashboard is your home screen. It focuses on one thing: **your projects**.
 
-<!-- 📸 SCREENSHOT: Visit /dashboard — capture the full dashboard with summary cards -->
+<!-- 📸 SCREENSHOT: Visit /dashboard — capture the header and project cards -->
 
 ### What you see:
 
 | Section | Description |
 |---------|-------------|
-| **Header** | Shows the total number of projects and how many are active |
-| **Summary Cards** | 4 cards showing: Total Income, Total Expenses, Labor Cost, Net Profit (across all projects) |
-| **Over Budget Alerts** | Projects that have exceeded their set budget |
-| **Pending Labor Payments** | Contractors who still have outstanding dues |
-| **Upcoming Milestones** | Milestones due within the next 7 days |
+| **Header** | Total number of projects and how many are active |
+| **New Project** | Button to create a project |
+| **Your Projects** | One card per project with status, budget, income, total spent, profit, % of budget used, milestone count, and pending approvals |
+
+Click any project card to open its full detail view.
+
+> The dashboard no longer shows separate summary cards, smart alerts, over-budget banners, or "due this week" milestones. Project-level numbers and warnings live inside each project.
 
 ### Navigation (Sidebar / Bottom Bar)
 
@@ -129,18 +136,34 @@ If you entered a **client email**, a portal login is automatically created. Afte
 
 Click on any project card from the Dashboard to open the project detail view.
 
-The project detail page has **8 tabs** to manage every aspect of your project:
+The project detail page has **13 tabs** to manage every aspect of your project:
 
 <!-- 📸 SCREENSHOT: Visit /projects/[id] — capture the project header with summary cards and the tab bar -->
 
-### Summary Cards at the Topß
+| Tab | What it does |
+|-----|--------------|
+| **Overview** | Budget progress, financial summary, category breakdown, milestones, vendors/contractors, project info |
+| **Income** | Payments received from the client |
+| **Expenses** | Non-material costs and read-only material payment rows |
+| **Labor** | Contractor and labor entries with payment tracking |
+| **Materials** | Material/hardware/furnishing bills and payments |
+| **Forecast** | Current spend, likely final cost, budget variance, category budgets |
+| **Payables** | Owner-borne material and labor dues |
+| **Ledger** | Vendor and contractor billed/paid statements |
+| **Milestones** | Project milestones and completion status |
+| **Files** | Uploaded receipts, bills, quotations, photos, documents |
+| **Notes** | Internal project notes |
+| **Reports** | P&L, budget, monthly/category/trade breakdowns, CSV export |
+| **Activity** | Audit trail of changes, approvals, and payments |
+
+### Summary Cards at the Top
 
 | Card | Description |
 |------|-------------|
 | **Income** | Total money received for this project |
-| **Expenses** | Total material/vendor/site expenses |
-| **Labor** | Total contractor and labor costs |
-| **Net Profit** | Income − Expenses − Labor |
+| **Expenses** | Non-material expenses + material payments (counted/approved only) |
+| **Labor** | Total contractor and labor contract value |
+| **Net Profit** | Income − owner-borne expenses − owner labor |
 
 ---
 
@@ -215,13 +238,13 @@ Track all money received for the project — advances, milestone payments, depos
 
 ### 4.3 Expenses Tab
 
-Track every rupee spent — materials, transport, rentals, site expenses, and more.
+Track non-material spending — transport, site expenses, rentals, utilities, labor/subcontractor payments, and misc costs. Material, hardware, and furnishing spend is managed in the **Materials** tab.
 
-<!-- 📸 SCREENSHOT: Visit /projects/[id] → Expenses tab — capture the expense list with category filters -->
+<!-- 📸 SCREENSHOT: Visit /projects/[id] → Expenses tab — capture the expense list with category filters and a material payment row -->
 
 #### Category Filters
 
-At the top, you'll see category pills showing the expense distribution (e.g., "Materials · 45%"). Click any pill to filter the list by that category.
+At the top, you'll see category pills showing the expense distribution (e.g., "Transport · 45%"). Click any pill to filter the list by that category. Material payment rows can be filtered by material categories too.
 
 #### Adding an Expense
 
@@ -232,7 +255,7 @@ At the top, you'll see category pills showing the expense distribution (e.g., "M
 |-------|-----------|-------------|
 | Date | ✅ Yes | Expense date |
 | Amount (₹) | ✅ Yes | Amount paid |
-| Category | ✅ Yes | Materials, Subcontractor, Transport, Labor, Site Expense, Rental, Hardware, Furnishing, Utility, Misc |
+| Category | ✅ Yes | Subcontractor, Transport, Labor, Site Expense, Rental, Utility, Misc |
 | Vendor | No | **Select from dropdown** (all vendors in the system) or type a new name |
 | Payment Mode | ✅ Yes | Cash, Bank Transfer, UPI, Cheque, Card, Other |
 | Tax/GST (₹) | No | Tax amount separately |
@@ -241,12 +264,15 @@ At the top, you'll see category pills showing the expense distribution (e.g., "M
 | Project Phase | No | Link to a phase |
 | Notes | No | Additional details |
 | Reimbursable | No | Check if this expense should be reimbursed |
+| Paid directly by client | No | Excludes the expense from your P&L |
 
-<!-- 📸 SCREENSHOT: Open the add expense modal — capture the form showing vendor dropdown -->
+> **Materials, Hardware, and Furnishing are not available in this form.** Add those in the Materials tab so bills and payments stay together.
+
+<!-- 📸 SCREENSHOT: Open the add expense modal — capture the form showing the category list without material categories -->
 
 #### Vendor Selection
 
-- For **all categories**, you'll see a dropdown of **all vendors** already added in the Vendors section.
+- For all categories, you'll see a dropdown of **all vendors** already added in the Vendors section.
 - Select an existing vendor OR type a new vendor name in the text field below.
 
 #### Contractor Selection (for Labor/Subcontractor expenses)
@@ -255,6 +281,13 @@ At the top, you'll see category pills showing the expense distribution (e.g., "M
 - You can also **link the expense to a specific labor entry** to track contractor payments.
 
 <!-- 📸 SCREENSHOT: Open add expense, select "Subcontractor" category — capture showing the contractor dropdown and labor linking -->
+
+#### Material Payment Rows
+
+- Material payments appear in the list for visibility, marked as material rows.
+- They are **read-only** here. Click **Manage in Materials** to edit the bill or payment in the Materials tab.
+- Legacy material-category expenses (created before the split) are shown in the **Materials** tab as one-off expenses.
+- Pending client-submitted expenses still appear at the top with **Approve** / **Reject** controls.
 
 ---
 
@@ -304,7 +337,85 @@ Three cards at the top showing: **Total Amount**, **Paid**, and **Pending**.
 
 ---
 
-### 4.5 Milestones Tab
+### 4.5 Materials Tab
+
+Materials, hardware, furnishing, and other purchase bills live here. Each bill is a **Material Entry**, and payments against it are **Material Payments**.
+
+<!-- 📸 SCREENSHOT: Visit /projects/[id] → Materials tab — capture the summary cards and expanded material entry -->
+
+#### Summary Cards
+
+| Card | Shows |
+|------|-------|
+| **Materials & Purchases** | Grand total of bills + one-off material-category expenses |
+| **Bills Total** | Total material bill value |
+| **Bills Paid** | Total payments recorded against material bills |
+| **Bills Pending** | Unpaid balance across material bills |
+
+#### Adding a Material Entry
+
+1. Click **"+ Add Material Entry"**.
+2. Fill in description, category (Materials / Hardware / Furnishing / Misc), bill amount, bill/invoice number, bill date, vendor, phase, and notes.
+3. Check **Paid by client** if the client bears this cost.
+4. Click **"Add Entry"**.
+
+#### Recording a Payment
+
+1. Expand a material entry.
+2. Click **"Record Payment"**.
+3. Enter payment amount, date, payment mode, reference/UTR, and notes.
+4. Click **"Record Payment"**.
+
+The entry shows bill amount, paid, due, and a payment history.
+
+#### One-Off Material Expenses
+
+- Legacy material-category expenses and approved client-submitted material expenses appear as **one-off expenses** below the material entries.
+- Pending client submissions are marked **Pending Approval** and are excluded from totals until approved.
+
+> Material payments also appear in the **Expenses** tab as read-only rows. Use **Manage in Materials** to edit them.
+
+---
+
+### 4.6 Forecast Tab
+
+Plan the likely final cost of the project.
+
+- **Current Spend** — counted non-material expenses + material payments + labor payments
+- **Likely Final Cost** — counted non-material expenses + full material bills + full labor value
+- **Unpaid Materials** — owner-borne unpaid material balances
+- **Labor Dues** — owner-borne unpaid labor balances
+- **Over/under budget** — compares the likely final cost with the project budget
+- **Category Budgets** — set budget targets for Materials, Labor, Furniture, Transport, and Site Expense
+
+---
+
+### 4.7 Payables Tab
+
+Shows money the owner still owes — unpaid material bills and labor dues where **Paid by client** is not checked.
+
+Each row shows the type (Material / Labor), party, due date, outstanding amount, and a priority badge:
+
+- **Normal** — up to 14 days old
+- **Medium** — 15–30 days old
+- **High** — more than 30 days old
+
+Rows are sorted by outstanding amount, highest first.
+
+---
+
+### 4.8 Ledger Tab
+
+A per-party accounting view:
+
+- **Vendor Ledger** — each vendor's billed and paid totals, with the outstanding balance
+- **Contractor Ledger** — each contractor's labor value and advances paid
+
+Green balance means fully paid; orange means an outstanding balance.
+
+---
+
+### 4.9 Milestones Tab
 
 Set project milestones and track progress.
 
@@ -336,7 +447,7 @@ Set project milestones and track progress.
 
 ---
 
-### 4.6 Attachments / Files Tab
+### 4.10 Attachments / Files Tab
 
 Upload and organize project files — receipts, bills, quotations, photos, etc.
 
@@ -358,7 +469,7 @@ Upload and organize project files — receipts, bills, quotations, photos, etc.
 
 ---
 
-### 4.7 Notes Tab
+### 4.11 Notes Tab
 
 Quick notes for the project — client preferences, site observations, reminders.
 
@@ -377,7 +488,7 @@ Quick notes for the project — client preferences, site observations, reminders
 
 ---
 
-### 4.8 Reports & Export Tab
+### 4.12 Reports & Export Tab
 
 View detailed financial reports and export data.
 
@@ -387,11 +498,11 @@ View detailed financial reports and export data.
 
 | Section | What it Shows |
 |---------|---------------|
-| **P&L Summary** | Income, Expenses (by type), Labor Cost, Net Profit, Profit Margin % |
+| **P&L Summary** | Income, Expenses, Labor Cost, Net Profit, Profit Margin % |
 | **Budget vs Actual** | Budget amount, total cost, progress bar, remaining/over-budget |
-| **Pending Receivables/Payables** | Expected vs received from client, worker dues |
+| **Pending Receivables/Payables** | Expected vs received from client, owner-borne dues |
 | **Monthly Breakdown** | Income and expense trends by month |
-| **Category Breakdown** | Expense distribution by category |
+| **Category Breakdown** | Expense and material distribution by category |
 | **Trade Breakdown** | Labor cost distribution by trade (Carpenter, Electrician, etc.) |
 
 #### Export to CSV
@@ -399,10 +510,19 @@ View detailed financial reports and export data.
 Click the **"Export CSV"** button at the bottom to download a full report containing:
 - All income transactions
 - All expense transactions
+- Material entries and payments
 - All labor entries
 - Financial summary
 
 The file is named: `{ProjectName}_Report.csv`
+
+---
+
+### 4.13 Activity Tab
+
+An audit trail for the project. Each entry shows what happened, when, and by whom.
+
+Recorded events include project creation/updates, status changes, expenses submitted/approved/rejected, payments received, labor additions, milestone completion, attachments, and notes.
 
 ---
 
@@ -498,7 +618,7 @@ You can associate vendors and contractors with specific projects for better orga
 
 ## 8. Client Portal
 
-Clients can log in to view their project details, payment history, and milestones — **read-only access**.
+Clients log in to view their project and contribute records. They can **submit expenses**, **record payments to the owner**, and **change their password** — but they cannot edit or delete owner-entered data.
 
 ### How Clients Get Access
 
@@ -519,14 +639,20 @@ Clients can log in to view their project details, payment history, and milestone
 
 #### Project Detail (`/portal/[id]`)
 
-<!-- 📸 SCREENSHOT: Click on a project in client portal → capture the project detail view -->
+<!-- 📸 SCREENSHOT: Click on a project in client portal → capture the project detail view with Record Payment and Add Expense -->
 
 - **Summary**: Budget, Total Paid, Remaining, Milestones progress
-- **Payment History**: All payments received with dates and amounts
-- **Milestones**: Progress and completion status
-- **Project Phases**: Current status of each phase
+- **Pending Approval banner**: submitted expenses awaiting owner review
+- **Record Payment to Owner**: log a payment with type, mode, reference, and notes
+- **Add Expense**: submit an expense for owner approval
+- **Your Submitted Expenses**: pending/rejected submissions and their status
+- **Project Timeline**: phases, milestones, approved expenses, and photos
+- **Payment History**: all recorded payments and client-paid costs
+- **Milestones**: progress and completion status
+- **Project Phases**: current status of each phase
+- **Photos**: recent project photos
 
-> **Note:** Clients can only **view** data — they cannot add, edit, or delete anything.
+> Clients can submit expenses and payments, but only the owner can approve expenses or edit project records.
 
 ---
 
@@ -563,20 +689,39 @@ Shows app version (1.0.0), currency (Indian Rupee ₹), and data security inform
 4. Link it to their **labor entry** using the "Link to Labor / Contractor" dropdown.
 5. The payment will automatically update the "Paid" amount on the Labor tab.
 
+### How do I track a material purchase?
+
+1. Go to the project → **Materials** tab → **+ Add Material Entry**.
+2. Enter the bill amount, vendor, category, and bill date.
+3. Expand the entry and click **"Record Payment"** for each payment you make.
+4. The entry shows paid and pending amounts. One-off material expenses appear below the entries.
+
+### How are the financial numbers calculated?
+
+- **Counted expenses** exclude `pending` and `rejected` client submissions.
+- Expenses linked to a labor entry are excluded from expense totals so the cost is counted once.
+- **Budget utilization** = (counted expenses + material payments + labor value) ÷ budget.
+- **Net profit** = income − owner-borne expenses − owner material payments − owner labor.
+- Anything marked **Paid by client** is excluded from net profit but still counts toward budget utilization.
+- **Client total paid** = income + client-paid expenses + client-paid material payments + client labor advances.
+- **Payables** only include owner-borne material and labor balances.
+
 ### How do I know if a project is over budget?
 
-- The **Dashboard** shows an "Over Budget" alert for any project exceeding its budget.
+- The project card on the **Dashboard** shows the percentage of budget spent.
 - Inside a project → **Overview** tab, the budget progress bar turns **red** if over budget.
+- The **Forecast** tab compares the likely final cost with the budget.
 
 ### How do I share project updates with my client?
 
 - Share the **client portal credentials** (visible in Project → Overview → Project Info).
-- The client logs in and sees: payment history, milestones, phases, and budget.
+- The client logs in and sees: payment history, milestones, phases, photos, and budget.
+- Clients can also submit expenses and record payments from the portal.
 
 ### Can I export data?
 
 - Yes! Go to any project → **Reports** tab → click **"Export CSV"**.
-- The CSV includes all income, expenses, labor entries, and financial summary.
+- The CSV includes all income, expenses, material entries and payments, labor entries, and the financial summary.
 
 ### What if I forgot to add client email during project creation?
 
@@ -606,15 +751,20 @@ To complete this document with screenshots, visit each URL listed below and capt
 | 8 | Income Tab | Same page, Income tab |
 | 9 | Expenses Tab | Same page, Expenses tab |
 | 10 | Labor Tab | Same page, Labor tab |
-| 11 | Milestones Tab | Same page, Milestones tab |
-| 12 | Files Tab | Same page, Files tab |
-| 13 | Notes Tab | Same page, Notes tab |
-| 14 | Reports Tab | Same page, Reports tab |
-| 15 | Vendors | `/vendors` |
-| 16 | Contractors | `/contractors` |
-| 17 | Settings | `/settings` |
-| 18 | Client Portal Home | Log in as client → `/portal` |
-| 19 | Client Project Detail | `/portal/[project-id]` |
+| 11 | Materials Tab | Same page, Materials tab |
+| 12 | Forecast Tab | Same page, Forecast tab |
+| 13 | Payables Tab | Same page, Payables tab |
+| 14 | Ledger Tab | Same page, Ledger tab |
+| 15 | Milestones Tab | Same page, Milestones tab |
+| 16 | Files Tab | Same page, Files tab |
+| 17 | Notes Tab | Same page, Notes tab |
+| 18 | Reports Tab | Same page, Reports tab |
+| 19 | Activity Tab | Same page, Activity tab |
+| 20 | Vendors | `/vendors` |
+| 21 | Contractors | `/contractors` |
+| 22 | Settings | `/settings` |
+| 23 | Client Portal Home | Log in as client → `/portal` |
+| 24 | Client Project Detail | `/portal/[project-id]` |
 
 Replace the `<!-- 📸 SCREENSHOT: ... -->` placeholders in this document with actual images:
 ```markdown

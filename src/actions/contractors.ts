@@ -6,10 +6,10 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 const contractorSchema = z.object({
-  name: z.string().min(1, 'Contractor name is required'),
-  phone: z.string().optional(),
-  trade: z.string().min(1, 'Trade is required'),
-  notes: z.string().optional(),
+  name: z.string().trim().min(1, 'Contractor name is required'),
+  phone: z.string().trim().optional(),
+  trade: z.string().trim().min(1, 'Trade is required'),
+  notes: z.string().trim().optional(),
 })
 
 export async function getContractors() {

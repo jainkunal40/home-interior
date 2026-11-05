@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useActionState } from 'react'
 import { createExpense, updateExpense, deleteExpense, approveExpense, rejectExpense } from '@/actions/expenses'
-import { updateMaterialEntryPayment } from '@/actions/materials'
 import { formatINR } from '@/lib/currency'
+import { materialPaymentTotal, sumExpenses } from '@/lib/finance'
 import { getLabelForValue, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,9 +15,11 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Wallet, Trash2, Edit2, Link2, CheckCircle, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
+import Link from 'next/link'
 
 // Approved material-category transactions live in the Materials workflow.
 const MATERIAL_CATEGORY_SET = new Set(['materials', 'hardware', 'furnishing'])
+const EXPENSE_FORM_CATEGORIES = EXPENSE_CATEGORIES.filter(c => !MATERIAL_CATEGORY_SET.has(c.value))
 
 export function ExpensesTab({ project, allVendors = [], allContractors = [] }: { project: any; allVendors?: any[]; allContractors?: any[] }) {
   const [showForm, setShowForm] = useState(false)
@@ -56,7 +58,7 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
       vendorName: entry.vendor?.name || entry.vendorName,
     }))
   )
-  const materialPaymentTotal = materialPaymentRows.reduce((s: number, p: any) => s + p.amount, 0)
+  const materialPaymentTotalValue = materialPaymentTotal(project.materialEntries)
   const displayRows = [
     ...approvedTransactions.map((t: any) => ({ ...t, _isMaterialPayment: false })),
     ...materialPaymentRows,
@@ -64,9 +66,9 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
     .filter((row: any) => filterCategory === 'all' || row.category === filterCategory)
     .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-  const total = approvedTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0) + materialPaymentTotal
-  const pendingTotal = pendingTransactions.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
-  const filteredTotal = displayRows.reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
+  const total = sumExpenses(approvedTransactions) + materialPaymentTotalValue
+  const pendingTotal = sumExpenses(pendingTransactions)
+  const filteredTotal = sumExpenses(displayRows)
 
   // Category breakdown (approved only)
   const categoryBreakdown: Record<string, number> = {}
@@ -195,7 +197,12 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
             <Card key={t.id}>
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1" onClick={() => openEdit(t)} role="button" tabIndex={0}>
+                  <div
+                    className={`min-w-0 flex-1 ${t._isMaterialPayment ? '' : 'cursor-pointer'}`}
+                    onClick={t._isMaterialPayment ? undefined : () => openEdit(t)}
+                    role={t._isMaterialPayment ? undefined : 'button'}
+                    tabIndex={t._isMaterialPayment ? undefined : 0}
+                  >
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-red-600 tabular-nums">
                         {formatINR(t.amount)}
@@ -242,10 +249,13 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
                     {t.notes && <p className="text-xs text-gray-400 mt-0.5">{t.notes}</p>}
                   </div>
                   {t._isMaterialPayment ? (
-                    <div className="flex gap-1 shrink-0">
-                      <button type="button" onClick={() => openEdit(t)} className="p-2 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 min-w-[40px] min-h-[40px] flex items-center justify-center">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                    <div className="shrink-0">
+                      <Link
+                        href={`/projects/${project.id}?tab=materials`}
+                        className="inline-flex items-center rounded-lg px-2 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 min-h-[40px]"
+                      >
+                        Manage in Materials
+                      </Link>
                     </div>
                   ) : (
                     <div className="flex gap-1 shrink-0">
@@ -267,83 +277,10 @@ export function ExpensesTab({ project, allVendors = [], allContractors = [] }: {
       )}
 
       {/* Add/Edit Expense Modal */}
-      <Modal open={showForm} onClose={closeForm} title={editItem?._isMaterialPayment ? 'Edit Material Payment' : editItem ? 'Edit Expense' : 'Add Expense'}>
-        {editItem?._isMaterialPayment ? (
-          <MaterialPaymentEditForm project={project} editItem={editItem} onClose={closeForm} allVendors={allVendors} />
-        ) : (
-          <ExpenseForm project={project} editItem={editItem} onClose={closeForm} allVendors={allVendors} allContractors={allContractors} />
-        )}
+      <Modal open={showForm} onClose={closeForm} title={editItem ? 'Edit Expense' : 'Add Expense'}>
+        <ExpenseForm project={project} editItem={editItem} onClose={closeForm} allVendors={allVendors} allContractors={allContractors} />
       </Modal>
     </div>
-  )
-}
-
-function MaterialPaymentEditForm({ project, editItem, onClose, allVendors = [] }: { project: any; editItem: any; onClose: () => void; allVendors?: any[] }) {
-  const action = updateMaterialEntryPayment.bind(null, editItem.entryId, editItem.paymentId, project.id)
-  const [state, formAction, isPending] = useActionState(action, null)
-
-  useEffect(() => {
-    if (state?.success) onClose()
-  }, [state?.success, onClose])
-
-  return (
-    <form action={formAction} className="space-y-3">
-      {state?.error && (
-        <div className="p-2 rounded-lg bg-red-50 text-red-700 text-sm">{state.error}</div>
-      )}
-      <Input name="description" label="Material Description *" placeholder="e.g. Teak wood, hinges, laminate sheets" defaultValue={editItem.description || ''} required />
-      <Select
-        name="category"
-        label="Category"
-        options={EXPENSE_CATEGORIES.filter(c => !['labor', 'subcontractor'].includes(c.value))}
-        defaultValue={editItem.category || 'materials'}
-      />
-      <div className="grid grid-cols-2 gap-3">
-        <Input name="billAmount" label="Bill Amount (₹) *" type="number" prefix="₹" defaultValue={editItem.billAmount || ''} required />
-        <Input name="billNumber" label="Bill / Invoice No." placeholder="INV-001" defaultValue={editItem.billNumber || ''} />
-      </div>
-      <Input name="billDate" label="Bill Date" type="date" defaultValue={editItem.billDate ? new Date(editItem.billDate).toISOString().split('T')[0] : ''} />
-      {allVendors.length > 0 ? (
-        <Select
-          name="vendorId"
-          label="Vendor"
-          options={[{ value: '', label: 'Select vendor or type below' }, ...allVendors.map(v => ({ value: v.id, label: `${v.name}${v.category ? ` (${v.category})` : ''}` }))]}
-          defaultValue={editItem.vendorId || ''}
-        />
-      ) : null}
-      <Input name="vendorName" label={allVendors.length > 0 ? 'Or enter vendor name' : 'Vendor Name'} placeholder="e.g., Shree Timber Works" defaultValue={editItem.vendorName || ''} />
-      <div className="grid grid-cols-2 gap-3">
-        <Input name="amount" label="Payment Amount (₹) *" type="number" prefix="₹" defaultValue={editItem.amount || ''} required />
-        <Input name="date" label="Payment Date *" type="date" defaultValue={editItem.date ? new Date(editItem.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} required />
-      </div>
-      <Select name="paymentMode" label="Payment Mode" options={[...PAYMENT_MODES]} defaultValue={editItem.paymentMode || 'cash'} />
-      <Input name="referenceNumber" label="Reference / UTR No." placeholder="Optional" defaultValue={editItem.referenceNumber || ''} />
-      {project.phases?.length > 0 && (
-        <Select
-          name="phaseId"
-          label="Project Phase"
-          options={[{ value: '', label: 'Not linked' }, ...project.phases.map((p: any) => ({ value: p.id, label: p.name }))]}
-          defaultValue={editItem.phaseId || ''}
-        />
-      )}
-      <Textarea name="materialNotes" label="Material Notes" placeholder="Specs, dimensions, or other details..." defaultValue={editItem.notes || ''} />
-      <Textarea name="paymentNotes" label="Payment Notes" placeholder="Optional payment note..." defaultValue={editItem.paymentNotes || ''} />
-      <label className="flex items-center gap-2 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          name="paidByClient"
-          defaultChecked={!!editItem.paidByClient}
-          className="w-4 h-4 rounded border-gray-300 text-brand-600 accent-brand-500"
-        />
-        <span className="text-sm text-gray-700">Client bears this cost <span className="text-xs text-gray-400">(excluded from your P&L)</span></span>
-      </label>
-      <div className="flex gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-        <Button type="submit" className="flex-1" disabled={isPending}>
-          {isPending ? 'Saving...' : 'Update Material'}
-        </Button>
-      </div>
-    </form>
   )
 }
 
@@ -353,13 +290,11 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
     ? updateExpense.bind(null, editItem.id, project.id)
     : createExpense.bind(null, project.id)
   const [state, formAction, isPending] = useActionState(action, null)
-  const [selectedCategory, setSelectedCategory] = useState(editItem?.category || 'materials')
+  const [selectedCategory, setSelectedCategory] = useState(editItem?.category || 'transport')
   const [selectedContractorId, setSelectedContractorId] = useState(
     editItem?.laborEntry?.contractorId ||
     (editItem?.vendorName ? allContractors.find(c => c.name === editItem.vendorName)?.id : '') || ''
   )
-  const [selectedMaterialEntryId, setSelectedMaterialEntryId] = useState('')
-  const [materialMode, setMaterialMode] = useState<'existing' | 'new'>('existing')
 
   useEffect(() => {
     if (state?.success) onClose()
@@ -373,18 +308,8 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
 
   // Labor entries for linking payments
   const laborEntries = project.laborEntries || []
-  const materialEntriesWithDue = (project.materialEntries || [])
-    .map((entry: any) => {
-      const paid = (entry.payments || []).reduce((s: number, p: any) => s + p.amount, 0)
-      return { ...entry, paid, due: Math.max(0, entry.billAmount - paid) }
-    })
-    .filter((entry: any) => entry.due > 0 && (!selectedCategory || entry.category === selectedCategory || selectedCategory === 'materials'))
-
-  const showMaterialLink = MATERIAL_CATEGORY_SET.has(selectedCategory)
   const showLaborLink = selectedCategory === 'labor' || selectedCategory === 'subcontractor'
   const showContractorSelect = selectedCategory === 'subcontractor' || selectedCategory === 'labor'
-  const selectedMaterialEntry = materialEntriesWithDue.find((entry: any) => entry.id === selectedMaterialEntryId)
-  const isNewMaterial = showMaterialLink && materialMode === 'new'
 
   return (
     <form action={formAction} className="space-y-3">
@@ -396,67 +321,13 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
       <Select
         name="category"
         label="Category *"
-        options={[...EXPENSE_CATEGORIES]}
+        options={EXPENSE_FORM_CATEGORIES}
         defaultValue={selectedCategory}
-        onChange={(e) => {
-          setSelectedCategory(e.target.value)
-          setSelectedMaterialEntryId('')
-          setMaterialMode('existing')
-        }}
+        onChange={(e) => setSelectedCategory(e.target.value)}
       />
 
-      {showMaterialLink && (
-        <>
-          <Select
-            name="materialMode"
-            label="Material entry"
-            options={[
-              { value: 'existing', label: 'Add payment to existing material' },
-              { value: 'new', label: 'Create new material entry' },
-            ]}
-            defaultValue={materialMode}
-            onChange={(e) => {
-              setMaterialMode(e.target.value as 'existing' | 'new')
-              setSelectedMaterialEntryId('')
-            }}
-          />
-
-          {materialMode === 'existing' && materialEntriesWithDue.length > 0 ? (
-            <Select
-              name="materialEntryId"
-              label="Add payment to material *"
-              options={[
-                { value: '', label: 'Select material with due' },
-                ...materialEntriesWithDue.map((entry: any) => ({
-                  value: entry.id,
-                  label: `${entry.description} — Due: ${formatINR(entry.due)}`,
-                })),
-              ]}
-              defaultValue=""
-              onChange={(e) => setSelectedMaterialEntryId(e.target.value)}
-              required
-            />
-          ) : materialMode === 'existing' ? (
-            <div className="p-3 rounded-lg bg-amber-50 text-sm text-amber-700">
-              No existing {getLabelForValue(EXPENSE_CATEGORIES, selectedCategory).toLowerCase()} entry has pending due. Choose create new material entry.
-            </div>
-          ) : (
-            <>
-              <Input name="materialDescription" label="Material Description *" placeholder="e.g. Teak wood, hinges, laminate sheets" required />
-              <Input name="materialBillAmount" label="Bill Amount (₹)" type="number" prefix="₹" placeholder="Defaults to payment amount" />
-            </>
-          )}
-          {selectedMaterialEntry && (
-            <div className="p-3 bg-blue-50 rounded-lg flex items-center justify-between text-sm">
-              <span className="text-blue-700">Outstanding balance</span>
-              <span className="font-bold text-blue-700 tabular-nums">{formatINR(selectedMaterialEntry.due)}</span>
-            </div>
-          )}
-        </>
-      )}
-
       {/* Vendor selection */}
-      {(!showMaterialLink || isNewMaterial) && !showContractorSelect && vendors.length > 0 ? (
+      {!showContractorSelect && vendors.length > 0 ? (
         <Select
           name="vendorId"
           label="Vendor"
@@ -464,7 +335,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
           defaultValue={editItem?.vendorId || ''}
         />
       ) : null}
-      {(!showMaterialLink || isNewMaterial) && !showContractorSelect && (
+      {!showContractorSelect && (
         <Input name="vendorName" label={vendors.length > 0 ? 'Or enter vendor name' : 'Vendor Name'} placeholder="e.g., Shree Timber Works" defaultValue={editItem?.vendorName || ''} />
       )}
 
@@ -483,7 +354,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
       )}
 
       {/* Labor entry link for contractor/labor payments */}
-      {!showMaterialLink && showLaborLink && laborEntries.length > 0 && (
+      {showLaborLink && laborEntries.length > 0 && (
         <Select
           name="laborEntryId"
           label="Link to Labor / Contractor"
@@ -501,7 +372,7 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
           defaultValue={editItem?.laborEntryId || ''}
         />
       )}
-      {(!showLaborLink || showMaterialLink) && editItem?.laborEntryId && (
+      {!showLaborLink && editItem?.laborEntryId && (
         <input type="hidden" name="laborEntryId" value="" />
       )}
 
@@ -520,25 +391,19 @@ function ExpenseForm({ project, editItem, onClose, allVendors = [], allContracto
         />
       )}
       <Textarea name="notes" label="Notes" placeholder="Optional notes..." defaultValue={editItem?.notes || ''} />
-      {(!showMaterialLink || isNewMaterial) && (
-        <>
-          {!showMaterialLink && (
-            <div className="flex items-center gap-2 py-1">
-              <input type="checkbox" name="isReimbursable" value="true" id="isReimbursable" defaultChecked={editItem?.isReimbursable || false} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-              <label htmlFor="isReimbursable" className="text-sm text-gray-700">Mark as reimbursable</label>
-            </div>
-          )}
-          <div className="flex items-center gap-2 py-1">
-            <input type="checkbox" name="paidByClient" value="true" id="paidByClient" defaultChecked={editItem?.paidByClient ?? !!project.clientManagedExpenses} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-            <label htmlFor="paidByClient" className="text-sm text-gray-700">Paid directly by client</label>
-          </div>
-        </>
-      )}
+      <div className="flex items-center gap-2 py-1">
+        <input type="checkbox" name="isReimbursable" value="true" id="isReimbursable" defaultChecked={editItem?.isReimbursable || false} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <label htmlFor="isReimbursable" className="text-sm text-gray-700">Mark as reimbursable</label>
+      </div>
+      <div className="flex items-center gap-2 py-1">
+        <input type="checkbox" name="paidByClient" value="true" id="paidByClient" defaultChecked={editItem?.paidByClient ?? !!project.clientManagedExpenses} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+        <label htmlFor="paidByClient" className="text-sm text-gray-700">Paid directly by client</label>
+      </div>
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onClose} className="flex-1">
           Cancel
         </Button>
-        <Button type="submit" className="flex-1" disabled={isPending || (showMaterialLink && materialMode === 'existing' && materialEntriesWithDue.length === 0)}>
+        <Button type="submit" className="flex-1" disabled={isPending}>
           {isPending ? 'Saving...' : isEdit ? 'Update Expense' : 'Save Expense'}
         </Button>
       </div>

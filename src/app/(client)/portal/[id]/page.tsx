@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect, notFound } from 'next/navigation'
 import { formatINR } from '@/lib/currency'
+import { computeProjectFinance } from '@/lib/finance'
 import { getStatusColor, getLabelForValue, PROJECT_STATUSES, MILESTONE_STATUSES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -64,20 +65,12 @@ export default async function ClientProjectPage({ params }: { params: Promise<{ 
   // Only count approved expenses in totals
   const approvedExpenses = project.expenseTransactions.filter(t => t.approvalStatus === 'approved')
   const pendingExpenses = project.expenseTransactions.filter(t => t.approvalStatus === 'pending')
-  const pendingTotal = pendingExpenses.reduce((s, t) => s + t.amount + t.taxAmount, 0)
 
-  const paidToOwner = project.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-  // Client-paid expenses (exclude labor-linked — those are already in advancePaid). Only approved.
-  const clientPaidExpenses = approvedExpenses
-    .filter(t => !t.laborEntryId)
-    .reduce((s, t) => s + t.amount + t.taxAmount, 0)
-  // advancePaid is auto-calculated as the sum of linked expense payments
-  const clientPaidLabor = project.laborEntries.reduce((s, entry) => s + entry.advancePaid, 0)
-  const clientPaidMaterials = project.materialEntries
-    .reduce((s, entry) => s + entry.payments.reduce((ps, payment) => ps + payment.amount, 0), 0)
-  const totalPaid = paidToOwner + clientPaidExpenses + clientPaidLabor + clientPaidMaterials
+  const finance = computeProjectFinance(project)
+  const pendingTotal = finance.pendingApproval
+  const totalPaid = finance.clientPaidToDate
+  const remainingBudget = finance.clientBudgetRemaining
   const completedMilestones = project.milestones.filter(m => m.status === 'completed').length
-  const remainingBudget = project.budget - totalPaid
   const timelineItems = [
     ...project.phases.map(phase => ({
       id: `phase-${phase.id}`,

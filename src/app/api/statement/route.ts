@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import {
+  clientExpenseTotal,
+  clientLaborPaidTotal,
+  clientMaterialPaymentTotal,
+  computeProjectFinance,
+} from '@/lib/finance'
 
 function money(n: number) {
   return `INR ${Math.round(n).toLocaleString('en-IN')}`
@@ -63,13 +69,15 @@ export async function GET(request: NextRequest) {
   })
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  const paidToOwner = project.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-  const clientPaidExpenses = project.expenseTransactions.filter(t => t.paidByClient).reduce((s, t) => s + t.amount + t.taxAmount, 0)
-  const materialPayments = project.materialEntries.reduce((s, e) => s + e.payments.reduce((ps, p) => ps + p.amount, 0), 0)
-  const clientMaterialPayments = project.materialEntries.filter(e => e.paidByClient).reduce((s, e) => s + e.payments.reduce((ps, p) => ps + p.amount, 0), 0)
+  const finance = computeProjectFinance(project)
+  const paidToOwner = finance.income
+  const clientPaidExpenses = clientExpenseTotal(project)
+  const materialPayments = finance.materialPaid
+  const clientMaterialPayments = clientMaterialPaymentTotal(project)
+  const clientLaborPayments = clientLaborPaidTotal(project)
   const milestoneText = `${project.milestones.filter(m => m.status === 'completed').length}/${project.milestones.length} completed`
-  const totalClientPaid = paidToOwner + clientPaidExpenses + clientMaterialPayments
-  const balance = project.budget - totalClientPaid
+  const totalClientPaid = finance.clientPaidToDate
+  const balance = finance.clientBudgetRemaining
 
   const lines = [
     `${project.name} - Client Statement`,
@@ -79,6 +87,7 @@ export async function GET(request: NextRequest) {
     `Client-paid approved expenses: ${money(clientPaidExpenses)}`,
     `Material payments recorded: ${money(materialPayments)}`,
     `Client-paid material payments: ${money(clientMaterialPayments)}`,
+    `Client-paid labor advances: ${money(clientLaborPayments)}`,
     `Total counted as paid by client: ${money(totalClientPaid)}`,
     `Balance against budget: ${money(balance)}`,
     `Milestones: ${milestoneText}`,

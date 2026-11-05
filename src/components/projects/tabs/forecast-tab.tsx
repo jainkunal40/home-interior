@@ -5,6 +5,17 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatINR } from '@/lib/currency'
+import {
+  billableExpenses,
+  expenseAmount,
+  laborDueTotal,
+  laborPaidTotal,
+  laborTotal as sumLaborTotal,
+  materialBillTotal,
+  materialDueTotal,
+  materialPaymentTotal,
+  sumExpenses,
+} from '@/lib/finance'
 import { updateBudgetCategories } from '@/actions/projects'
 
 const BUDGET_CATEGORIES = [
@@ -16,31 +27,28 @@ const BUDGET_CATEGORIES = [
 ] as const
 
 export function ForecastTab({ project }: { project: any }) {
-  const approved = (project.expenseTransactions ?? []).filter((t: any) => t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
-  const normalExpenses = approved
-    .filter((t: any) => !t.laborEntryId)
-    .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
-  const materialBills = (project.materialEntries ?? []).reduce((s: number, e: any) => s + e.billAmount, 0)
-  const materialPaid = (project.materialEntries ?? []).reduce((s: number, e: any) => s + (e.payments ?? []).reduce((ps: number, p: any) => ps + p.amount, 0), 0)
-  const materialDue = Math.max(0, materialBills - materialPaid)
-  const laborTotal = (project.laborEntries ?? []).reduce((s: number, l: any) => s + l.totalAmount, 0)
-  const laborPaid = (project.laborEntries ?? []).reduce((s: number, l: any) => s + l.advancePaid, 0)
-  const laborDue = Math.max(0, laborTotal - laborPaid)
+  const approved = billableExpenses(project)
+  const normalExpenses = sumExpenses(approved)
+  const materialBills = materialBillTotal(project.materialEntries)
+  const materialPaid = materialPaymentTotal(project.materialEntries)
+  const materialDue = materialDueTotal(project.materialEntries, (entry) => !entry.paidByClient)
+  const laborTotalValue = sumLaborTotal(project.laborEntries)
+  const laborPaid = laborPaidTotal(project.laborEntries)
+  const laborDue = laborDueTotal(project.laborEntries, (entry) => !entry.paidByClient)
   const currentSpend = normalExpenses + materialPaid + laborPaid
-  const projectedFinal = normalExpenses + materialBills + laborTotal
+  const projectedFinal = normalExpenses + materialBills + laborTotalValue
   const variance = projectedFinal - (project.budget || 0)
   const pendingMilestones = (project.milestones ?? []).filter((m: any) => m.status !== 'completed')
 
   const categoryActuals: Record<string, number> = {
     materials: 0,
-    labor: laborTotal,
+    labor: laborTotalValue,
     furnishing: 0,
     transport: 0,
     site_expense: 0,
   }
   for (const t of approved) {
-    if (t.laborEntryId) continue
-    if (categoryActuals[t.category] !== undefined) categoryActuals[t.category] += t.amount + (t.taxAmount || 0)
+    if (categoryActuals[t.category || ''] !== undefined) categoryActuals[t.category || ''] += expenseAmount(t)
   }
   for (const e of (project.materialEntries ?? [])) {
     const key = e.category === 'furnishing' ? 'furnishing' : 'materials'

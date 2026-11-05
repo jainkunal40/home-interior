@@ -31,33 +31,46 @@ Explore Interiors is a private business management tool built for interior desig
 ## Features
 
 ### Owner / Dashboard
-- **Dashboard** — summary of income, expenses, labor cost, and net profit across all projects; over-budget alerts; milestones due this week
+- **Dashboard** — project list only: each card shows budget, income, total spent, profit, % of budget used, milestones, and pending approvals
 - **Project Management** — create projects with budget, start/end dates, site address, and client assignment
 - **Income Tracking** — record payments received, broken down by payment type and source
-- **Expense Tracking** — log materials, hardware, furnishing, transport, subcontractor, and miscellaneous costs with GST/tax support
+- **Expense Tracking** — log non-material costs (transport, subcontractor, labor, site expense, rental, utility, misc) with GST/tax support
+- **Materials** — record material/hardware/furnishing bills, add payments against them, and track paid vs. pending balances
 - **Labor Tracking** — track workers, trade types, daily/hourly rates, advance payments, and contractor assignments
+- **Forecast** — current spend, likely final cost, budget variance, and editable per-category budgets
+- **Payables** — owner-borne material and labor dues in one list
+- **Ledger** — vendor and contractor billed/paid statements
 - **Milestones** — define project milestones with due dates and completion status
 - **Phases** — break projects into phases (planning, in-progress, completed) with sort order
 - **Attachments** — upload and manage project files and photos (Vercel Blob storage)
 - **Notes** — internal project notes
-- **Reports** — P&L summary, category expense breakdown, client vs. owner cost split
+- **Reports** — P&L summary, category expense breakdown, monthly trends, client vs. owner cost split, CSV export
+- **Activity** — audit trail of project changes, approvals, and payments
 - **Vendors** — global vendor directory with category, GST number, and contact details
 - **Contractors** — global contractor directory with trade specialization
 - **Settings** — profile management, password change, notification channel configuration, client portal password reset
 
 ### Client Portal
 - Separate authenticated portal for project clients
-- View project status, budget, total paid, remaining balance, and milestones
-- Full payment history (income payments + direct client expenses)
+- View project status, budget, total paid, remaining balance, timeline, photos, and milestones
+- Full payment history (income payments + client-paid expenses and materials)
 - Submit expenses for owner approval (with vendor/contractor selection from assigned list)
+- Record payments made to the owner
 - Track submitted expense approval status (pending / approved / rejected)
 - Change portal password
+- Clients cannot edit or delete owner records
 
 ### Financial Calculations
-- **Budget Utilization** — includes ALL expenses and labor (owner + client-paid)
-- **Net Profit / P&L** — calculated only on owner-borne costs (excludes client-paid items)
-- **Client-Paid Total** — client-paid expenses (approved only) + labor advance paid by client
-- Pending client expenses are excluded from all calculations until approved
+Shared rules live in `src/lib/finance.ts`; every screen, the statement PDF, and the Telegram bot use them.
+
+- **Counted expenses** — `pending` and `rejected` expenses are excluded from every total
+- **No double counting** — expenses linked to a labor entry are excluded from expense totals
+- **Materials** — material payments count as spend; unpaid bill balances are payables, not spend
+- **Budget Utilization** — all counted spend + all material payments + all labor (owner + client-paid)
+- **Net Profit / P&L** — income minus owner-borne expenses, owner material payments, and owner labor only
+- **Client-Paid Total** — cash the client has actually paid: income + client-paid expenses + client-paid material payments + client labor advances
+- **Client-Borne Cost** — full value the client is responsible for, including the full value of client-paid labor entries
+- **Payables** — only owner-borne material and labor dues
 
 ### Notifications
 - **WhatsApp** (Meta Cloud API) — for businesses with WhatsApp Business accounts
@@ -98,13 +111,14 @@ Explore Interiors is a private business management tool built for interior desig
 src/
 ├── actions/          # Server Actions (mutations & queries)
 │   ├── auth.ts       # Login, signup
-│   ├── projects.ts   # Project CRUD
+│   ├── projects.ts   # Project CRUD + activity log
 │   ├── expenses.ts   # Expense CRUD + client submit/approve/reject
-│   ├── income.ts     # Income CRUD
+│   ├── materials.ts  # Material entries + material payments
+│   ├── income.ts     # Income CRUD + client payment submission
 │   ├── labor.ts      # Labor entry CRUD
 │   ├── milestones.ts # Milestone CRUD
-│   ├── vendors.ts    # Vendor CRUD
-│   ├── contractors.ts# Contractor CRUD
+│   ├── vendors.ts    # Vendor CRUD + project assignment
+│   ├── contractors.ts# Contractor CRUD + project assignment
 │   └── settings.ts   # Profile, password, notifications
 │
 ├── app/
@@ -119,14 +133,20 @@ src/
 │   ├── api/
 │   │   ├── upload/   # File upload to Vercel Blob
 │   │   ├── download/ # File download
-│   │   └── telegram/webhook/  # Telegram bot webhook
+│   │   ├── export/   # Project CSV export
+│   │   ├── statement/# Client statement PDF
+│   │   ├── cron/     # Scheduled reminders
+│   │   ├── telegram/webhook/
+│   │   └── whatsapp/webhook/
 │   ├── login/
 │   └── signup/
 │
 ├── components/
 │   ├── projects/
 │   │   ├── project-detail-view.tsx   # Tab-based project detail
-│   │   └── tabs/                     # overview, income, expenses, labor, milestones, attachments, notes, reports
+│   │   └── tabs/                     # 13 tabs: overview, income, expenses, labor, materials,
+│   │                                 # forecast, payables, ledger, milestones, files, notes,
+│   │                                 # reports, activity
 │   └── ui/           # Design system (Button, Card, Input, Select, Modal, Badge, etc.)
 │
 ├── lib/
@@ -134,8 +154,11 @@ src/
 │   ├── prisma.ts     # Prisma client singleton
 │   ├── session.ts    # requireAuth helper
 │   ├── currency.ts   # formatINR, formatINRCompact
+│   ├── finance.ts    # Shared financial rules (single source of truth)
+│   ├── finance.test.ts # Tests for the financial rules
 │   ├── utils.ts      # cn(), status helpers, label lookups
 │   ├── validations.ts# Zod schemas
+│   ├── bot-commands.ts # Telegram/WhatsApp owner commands
 │   ├── notifications.ts  # Unified notification dispatcher
 │   ├── whatsapp.ts   # WhatsApp Cloud API provider
 │   └── telegram.ts   # Telegram Bot API provider
@@ -144,7 +167,7 @@ src/
 
 prisma/
 ├── schema.prisma     # Database schema
-└── seed.ts           # Seed script (creates admin user)
+└── seed.ts           # ⚠️ Destructive demo seed — never run against live data
 ```
 
 ---
@@ -174,16 +197,22 @@ cp .env.example .env
 # 4. Push database schema
 npm run db:push
 
-# 5. Seed the database (creates initial admin user)
+# 5. Seed a fresh demo database (DESTRUCTIVE — deletes all app data first)
+#    Only run this on a local/dev database, never on Neon production.
 npm run db:seed
 
 # 6. Start the dev server
 npm run dev
+
+# 7. Run the finance tests
+npm test
 ```
 
 The app will be available at http://localhost:3000.
 
 Default admin credentials after seeding are printed to the terminal by `seed.ts`.
+
+> **Data safety:** `prisma/seed.ts` deletes every application row before recreating demo data. See [`AGENTS.md`](./AGENTS.md) before pointing any command at the live Neon database.
 
 ---
 
@@ -207,15 +236,20 @@ Default admin credentials after seeding are printed to the terminal by `seed.ts`
 The schema uses PostgreSQL with Prisma ORM.
 
 ```bash
-# Apply schema changes to database
+# Apply schema changes to database (targets DATABASE_URL — get approval first)
 npm run db:push
 
 # Open Prisma Studio (visual DB browser)
 npm run db:studio
 
-# Seed initial data
+# Seed demo data (DESTRUCTIVE — deletes all application rows first)
 npm run db:seed
+
+# Run the finance calculation tests
+npm test
 ```
+
+> `db:push` and `db:seed` operate on whatever `DATABASE_URL` points to. For the live Neon database, create a branch/snapshot and get explicit approval before either command.
 
 ### Key Models
 
@@ -224,7 +258,9 @@ npm run db:seed
 | `User` | Owner/admin account with notification preferences |
 | `Client` | Project client with portal access and notification preferences |
 | `Project` | Core entity — links user, client, and all financial data |
-| `ExpenseTransaction` | Expense with category, vendor, tax, paidByClient flag, approvalStatus |
+| `ExpenseTransaction` | Non-material expense with category, vendor, tax, paidByClient flag, approvalStatus |
+| `MaterialEntry` | Material/hardware/furnishing bill with vendor, bill amount, and paidByClient flag |
+| `MaterialPayment` | Payment made against a material entry |
 | `LaborEntry` | Labor cost with contractor, rate, advance paid tracking |
 | `IncomeTransaction` | Payment received from client |
 | `Milestone` | Project milestone with due date and completion status |
@@ -233,6 +269,7 @@ npm run db:seed
 | `Contractor` | Labor contractor by trade (global, reusable across projects) |
 | `Attachment` | File uploaded to Vercel Blob, linked to project or expense |
 | `Note` | Internal project note |
+| `ActivityLog` | Audit trail of project changes and approvals |
 
 ---
 
@@ -290,17 +327,36 @@ vercel --prod
 3. Share the portal URL: `https://your-app.vercel.app/portal`
 4. Client logs in with their email and portal password
 
+### Materials
+1. Open a project → **Materials** tab → **Add Material Entry**
+2. Enter the description, category, bill amount, vendor, and bill date
+3. Record payments against the bill with **Record Payment**
+4. The tab shows total bills, paid, pending, and one-off material-category expenses
+5. Material payments also appear read-only in the **Expenses** tab with a **Manage in Materials** link
+
 ### Expense Approval Flow
 1. Client submits an expense via **Add Expense** in their portal
 2. Owner receives a notification (WhatsApp or Telegram)
 3. Owner reviews it in the project's **Expenses** tab → approves or rejects
 4. Client receives a notification of the decision
 5. Approved expenses are included in financial calculations
+6. Approved material-category submissions appear in the **Materials** tab as one-off expenses
+
+> Owner-created expenses cannot use the material categories (`materials`, `hardware`, `furnishing`). Those are managed in the Materials tab.
+
+### Client Portal Writes
+Clients can:
+- Submit expenses for approval (pending until the owner approves)
+- Record payments made to the owner
+- Change their portal password
+
+Clients cannot edit or delete owner-entered records.
 
 ### Client-Paid vs. Owner-Paid
-- Expenses and labor entries can be flagged as **Paid by Client**
+- Expenses, material entries, and labor entries can be flagged as **Paid by Client**
 - These are excluded from the owner's P&L (net profit) but included in budget utilization
-- The client portal shows their total contribution across income, direct expenses, and labor advances
+- **Payables** and forecast dues show only owner-borne balances
+- The client portal shows cash the client has actually paid: income, client-paid expenses, client-paid material payments, and client labor advances
 
 ---
 

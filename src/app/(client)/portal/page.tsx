@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { formatINR } from '@/lib/currency'
+import { computeProjectFinance } from '@/lib/finance'
 import { getStatusColor, getLabelForValue, PROJECT_STATUSES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -53,18 +54,8 @@ export default async function ClientPortalPage() {
   let totalBudget = 0
 
   const summaries = projects.map((p) => {
-    const income = p.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-    // Client-paid expenses — only approved, exclude labor-linked (already in advancePaid)
-    const clientPaidExpenses = p.expenseTransactions
-      .filter(t => t.paidByClient && !t.laborEntryId && t.approvalStatus === 'approved')
-      .reduce((s, t) => s + t.amount + t.taxAmount, 0)
-    // advancePaid is auto-calculated as the sum of linked expense payments
-    const clientPaidLabor = p.laborEntries
-      .filter(t => t.paidByClient)
-      .reduce((s, entry) => s + entry.advancePaid, 0)
-    const clientPaidMaterials = p.materialEntries
-      .reduce((s, entry) => s + entry.payments.reduce((ps, payment) => ps + payment.amount, 0), 0)
-    const paid = income + clientPaidExpenses + clientPaidLabor + clientPaidMaterials
+    const finance = computeProjectFinance(p)
+    const paid = finance.clientPaidToDate
     const completedMilestones = p.milestones.filter(m => m.status === 'completed').length
 
     totalPaid += paid

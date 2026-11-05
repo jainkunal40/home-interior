@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { cn, getStatusColor, getLabelForValue, PROJECT_STATUSES } from '@/lib/utils'
+import { computeProjectFinance } from '@/lib/finance'
 import { Badge } from '@/components/ui/badge'
 import { SummaryCard } from '@/components/ui/summary-card'
 import {
@@ -67,37 +68,9 @@ export function ProjectDetailView({ project, allVendors, allContractors }: { pro
     }
   }, [tabParam])
 
-  const totalIncome = project.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
-  // Only approved expenses for calculations — exclude labor-linked to avoid double-counting
-  const approvedExpenses = project.expenseTransactions.filter((t: any) => t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
-  // Split material entry paid amounts into owner-paid vs client-paid
-  const ownerMaterialsPaid = (project.materialEntries ?? [])
-    .filter((e: any) => !e.paidByClient)
-    .reduce((s: number, e: any) => s + (e.payments ?? []).reduce((ps: number, p: any) => ps + p.amount, 0), 0)
-  const clientMaterialsPaid = (project.materialEntries ?? [])
-    .filter((e: any) => e.paidByClient)
-    .reduce((s: number, e: any) => s + (e.payments ?? []).reduce((ps: number, p: any) => ps + p.amount, 0), 0)
-  const totalMaterialsPaid = ownerMaterialsPaid + clientMaterialsPaid
-  const totalExpenses = approvedExpenses
-    .filter((t: any) => !t.laborEntryId)
-    .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
-    + totalMaterialsPaid
-  const totalLabor = project.laborEntries
-    .reduce((s: number, t: any) => s + t.totalAmount, 0)
-  // Owner-only costs (for P&L)
-  const ownerExpenses = approvedExpenses
-    .filter((t: any) => !t.paidByClient && !t.laborEntryId)
-    .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
-    + ownerMaterialsPaid
-  const ownerLabor = project.laborEntries
-    .filter((t: any) => !t.paidByClient)
-    .reduce((s: number, t: any) => s + t.totalAmount, 0)
-  // Pending approval total
-  const pendingApprovalTotal = project.expenseTransactions
-    .filter((t: any) => t.approvalStatus === 'pending')
-    .reduce((s: number, t: any) => s + t.amount + (t.taxAmount || 0), 0)
-  const clientPaidTotal = (totalExpenses - ownerExpenses) + (totalLabor - ownerLabor)
-  const netProfit = totalIncome - ownerExpenses - ownerLabor
+  const finance = computeProjectFinance(project)
+  const { income: totalIncome, expenses: totalExpenses, labor: totalLabor, netProfit } = finance
+  const { clientBorneCost: clientPaidTotal, pendingApproval: pendingApprovalTotal } = finance
 
   return (
     <div className="space-y-4">

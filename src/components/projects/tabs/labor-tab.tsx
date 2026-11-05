@@ -3,6 +3,7 @@
 import { useState, useEffect, useActionState } from 'react'
 import { createLabor, updateLabor, deleteLabor } from '@/actions/labor'
 import { formatINR } from '@/lib/currency'
+import { laborDueTotal, laborPaidTotal, laborTotal as sumLaborTotal } from '@/lib/finance'
 import { getLabelForValue, TRADE_TYPES, RATE_TYPES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,9 +26,9 @@ export function LaborTab({ project, allContractors = [] }: { project: any; allCo
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
 
-  const totalLabor = project.laborEntries.reduce((s: number, l: any) => s + l.totalAmount, 0)
-  const totalAdvance = project.laborEntries.reduce((s: number, l: any) => s + l.advancePaid, 0)
-  const totalPending = totalLabor - totalAdvance
+  const totalLabor = sumLaborTotal(project.laborEntries)
+  const totalAdvance = laborPaidTotal(project.laborEntries)
+  const totalPending = laborDueTotal(project.laborEntries)
 
   function openAdd() { setEditItem(null); setShowForm(true) }
   function openEdit(item: any) { setEditItem(item); setShowForm(true) }

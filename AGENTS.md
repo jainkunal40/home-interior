@@ -37,19 +37,54 @@ This file is the operational handoff for future agent sessions. Read it before t
 
 Snapshot from **2026-11-05** (counts will change as the app is used):
 
-- 3 users, 6 projects, 5 clients
-- 64 `ExpenseTransaction` rows
-- 44 `MaterialEntry` rows
-- 53 `MaterialPayment` rows
-- All 44 material entries have `paidByClient = true`
+- 3 users, 6 projects, 6 clients
+- 59 `ExpenseTransaction` rows
+- 47 `MaterialEntry` rows
+- 57 `MaterialPayment` rows
+- All 47 material entries have `paidByClient = true`
+
+### Data fixes applied 2026-11-05
+
+Read-only audit followed by targeted fixes (backup: `.db-backups/pre-fix-baseline-20261105-225555.sql`, gitignored):
+
+- Created the missing `Client` "Raskar pariwar" and linked project `cmqtto5oq0001ws20ktxeoubm` to it; budget `0` → `7,50,000`.
+- Trimmed trailing spaces from 149 name/title/description values across 10 columns (all pre-existing rows had a trailing `0x20`). Root cause: no `.trim()` in the zod schemas — now added to `src/lib/validations.ts`, `vendors.ts`, `contractors.ts`, `materials.ts`, `expenses.ts`, `settings.ts`.
+- Labor entry `cmooh3w8g0002wnn5zlezzy9q` (Jain Pariwar AC work): `totalAmount` `28,200` → `31,400` so it matches the two linked expenses (₹28,200 + ₹3,200) and no longer reads as overpaid.
+- Labor entry `cmuat778k0002kyguk45kkkgh`: reversed start/end dates swapped to `2026-09-15` → `2026-09-21`.
+- Added a ₹19 `MaterialPayment` to settle material entry `cmo9yjttp001hj8k2522qybzz` ("Dhanesh") in full.
+- Backfilled `vendorName` on 5 `MaterialEntry` rows from their `Vendor` relation.
+- Deleted the two rejected ₹1 "test" expenses in Jain Pariwar.
+- Migrated the last 3 legacy material-category expenses into `MaterialEntry` + `MaterialPayment` (project spend verified unchanged). No material-category `ExpenseTransaction` rows remain.
+- Repointed 20 `ActivityLog` rows (15 income, 5 labor) whose `entityId` held a project id — it now references the real transaction id.
+
+Known-acceptable state (verified, not bugs): 3 material entries remain partially paid (genuine payables in Jain Pariwar), and 3 labor entries carry manual advances with no linked expenses — those advances are now preserved by `adjustLaborPaid`.
+
+23 `ActivityLog` rows still reference entities that were deleted before this cleanup (15 expense, 5 material, 1 income, 1 labor, 1 milestone). They cannot be repaired by inference and are harmless: `getActivityLogs` filters on `projectId`, never `entityId`.
+
+### Labor paid accounting
+
+`src/actions/expenses.ts` must **never** recompute `advancePaid` from linked expenses. It uses `adjustLaborPaid(laborEntryId, delta)`, which applies only the changed expense's contribution. Overwriting the field loses advances the owner entered by hand (entries with no linked expense rows).
+
 
 ## Materials model
 
 - Material-category spend lives in `MaterialEntry` + `MaterialPayment`, not ordinary `ExpenseTransaction` rows.
 - Material categories: `materials`, `hardware`, `furnishing`.
-- Material payments are surfaced in the Expenses tab for visibility but are managed through the Materials tab.
+- Material payments are surfaced in the Expenses tab for visibility but are read-only there; they are managed through the Materials tab.
+- Owner-created expenses cannot use material categories — `createExpense` / `updateExpense` reject them server-side, and the owner expense form omits them.
+- Client-submitted material-category expenses are still accepted; once approved they appear in the Materials tab as one-off expense rows.
 - Material costs marked `paidByClient` are excluded from owner P&L, but included in budget utilization.
-- Recent behavior: the Expenses form can still create/link material entries, and material payment rows in Expenses are editable — this is ahead of the older handoff text that called them read-only.
+- Financial rules are centralized in `src/lib/finance.ts` and covered by `src/lib/finance.test.ts` (`npm test`).
+
+## Financial calculations
+
+- Single source of truth: `src/lib/finance.ts`.
+- Pending/rejected expenses are excluded from all totals.
+- Expenses linked to a labor entry are excluded from expense totals (the labor entry carries the cost).
+- Material payments count as spend; unpaid bill balances are payables.
+- Owner P&L = income − owner expenses − owner material payments − owner labor.
+- Client total paid = income + client-paid expenses + client-paid material payments + client labor advances.
+- Payables shown to the owner exclude client-paid material and labor balances.
 
 ## Local development
 
@@ -59,6 +94,7 @@ npm install        # already installed in this workspace
 npm run dev        # http://localhost:3000
 npm run build
 npm run start
+npm test           # finance calculation tests
 npm run db:studio  # Prisma Studio against DATABASE_URL
 ```
 

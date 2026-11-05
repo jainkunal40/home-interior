@@ -8,3 +8,9 @@ node_modules/
 public/uploads/*
 !public/uploads/.gitkeep
 workspaceStorage_analysis.txt
+
+# local logical DB snapshots (never commit)
+.db-backups/
+
+# local Continue agent config (contains API keys — never commit)
+.continue/

@@ -3,6 +3,7 @@
 import { useState, useEffect, useActionState } from 'react'
 import { createIncome, updateIncome, deleteIncome } from '@/actions/income'
 import { formatINR } from '@/lib/currency'
+import { incomeTotal } from '@/lib/finance'
 import { getLabelForValue, PAYMENT_TYPES, PAYMENT_MODES } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,7 @@ export function IncomeTab({ project }: { project: any }) {
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
 
-  const total = project.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
+  const total = incomeTotal(project)
 
   function openAdd() { setEditItem(null); setShowForm(true) }
   function openEdit(item: any) { setEditItem(item); setShowForm(true) }

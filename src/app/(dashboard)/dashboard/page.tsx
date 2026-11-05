@@ -1,4 +1,5 @@
 import { getProjects } from '@/actions/projects'
+import { computeProjectFinance } from '@/lib/finance'
 import { formatINRCompact } from '@/lib/currency'
 import { getStatusColor, getLabelForValue, PROJECT_STATUSES } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -12,31 +13,16 @@ export default async function DashboardPage() {
   const projects = await getProjects()
 
   const projectSummaries = projects.map((p: any) => {
-    const income = p.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
-    // Only approved expenses for calculations — exclude labor-linked to avoid double-counting
-    const approved = p.expenseTransactions.filter((t: any) => t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
-    const expenses = approved
-      .filter((t: any) => !t.laborEntryId)
-      .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
-    const materials = (p.materialEntries ?? [])
-      .reduce((s: number, entry: any) => s + (entry.payments ?? []).reduce((ps: number, payment: any) => ps + payment.amount, 0), 0)
-    const labor = p.laborEntries
-      .reduce((s: number, t: any) => s + t.totalAmount, 0)
-    const spent = expenses + materials + labor
-    // Owner-only for P&L
-    const ownerExpenses = approved
-      .filter((t: any) => !t.paidByClient && !t.laborEntryId)
-      .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
-      + (p.materialEntries ?? [])
-        .filter((entry: any) => !entry.paidByClient)
-        .reduce((s: number, entry: any) => s + (entry.payments ?? []).reduce((ps: number, payment: any) => ps + payment.amount, 0), 0)
-    const ownerLabor = p.laborEntries
-      .filter((t: any) => !t.paidByClient)
-      .reduce((s: number, t: any) => s + t.totalAmount, 0)
-    const profit = income - ownerExpenses - ownerLabor
+    const finance = computeProjectFinance(p)
     const pendingApprovalCount = p.expenseTransactions.filter((t: any) => t.approvalStatus === 'pending').length
 
-    return { ...p, income, spent, profit, pendingApprovalCount }
+    return {
+      ...p,
+      income: finance.income,
+      spent: finance.totalCost,
+      profit: finance.netProfit,
+      pendingApprovalCount,
+    }
   })
 
   const activeCount = projectSummaries.filter((p: any) => p.status === 'active').length

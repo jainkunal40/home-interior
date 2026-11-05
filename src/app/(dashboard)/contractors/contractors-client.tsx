@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { TRADE_TYPES } from '@/lib/utils'
 import { formatINR } from '@/lib/currency'
+import { laborDueTotal, laborPaidTotal, laborTotal } from '@/lib/finance'
 import { Plus, Users, Trash2, Edit2, Phone } from 'lucide-react'
 
 export function ContractorsClient({ contractors }: { contractors: any[] }) {
@@ -45,9 +46,9 @@ export function ContractorsClient({ contractors }: { contractors: any[] }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {contractors.map((c) => {
-            const totalAmount = c.laborEntries?.reduce((s: number, l: any) => s + l.totalAmount, 0) || 0
-            const totalPaid = c.laborEntries?.reduce((s: number, l: any) => s + l.advancePaid, 0) || 0
-            const totalDue = totalAmount - totalPaid
+            const totalAmount = laborTotal(c.laborEntries)
+            const totalPaid = laborPaidTotal(c.laborEntries)
+            const totalDue = laborDueTotal(c.laborEntries)
             const activeJobs = c.laborEntries?.filter((l: any) => l.status === 'ongoing').length || 0
 
             return (

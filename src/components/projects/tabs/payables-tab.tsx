@@ -3,11 +3,12 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatINR } from '@/lib/currency'
+import { laborDueTotal, materialDueTotal } from '@/lib/finance'
 import { format, differenceInCalendarDays } from 'date-fns'
 
 export function PayablesTab({ project }: { project: any }) {
   const rows = [
-    ...(project.materialEntries ?? []).map((entry: any) => {
+    ...(project.materialEntries ?? []).filter((entry: any) => !entry.paidByClient).map((entry: any) => {
       const paid = (entry.payments ?? []).reduce((s: number, p: any) => s + p.amount, 0)
       const due = Math.max(0, entry.billAmount - paid)
       return due > 0 ? {
@@ -19,7 +20,7 @@ export function PayablesTab({ project }: { project: any }) {
         date: entry.billDate,
       } : null
     }),
-    ...(project.laborEntries ?? []).map((labor: any) => {
+    ...(project.laborEntries ?? []).filter((labor: any) => !labor.paidByClient).map((labor: any) => {
       const due = Math.max(0, labor.totalAmount - labor.advancePaid)
       return due > 0 ? {
         id: `labor-${labor.id}`,
@@ -32,7 +33,7 @@ export function PayablesTab({ project }: { project: any }) {
     }),
   ].filter(Boolean).sort((a: any, b: any) => b.due - a.due)
 
-  const totalDue = rows.reduce((s: number, r: any) => s + r.due, 0)
+  const totalDue = materialDueTotal(project.materialEntries, (entry) => !entry.paidByClient) + laborDueTotal(project.laborEntries, (entry) => !entry.paidByClient)
 
   return (
     <div className="space-y-4">

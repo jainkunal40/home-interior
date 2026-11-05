@@ -6,8 +6,9 @@ import { expenseSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { notifyExpensePendingApproval, notifyExpenseApprovalStatus } from '@/lib/notifications'
+import { isCountedExpense } from '@/lib/finance'
 
-const MATERIAL_CATEGORIES = new Set(['materials', 'hardware', 'furnishing'])
+const MATERIAL_CATEGORY_SET = new Set(['materials', 'hardware', 'furnishing'])
 
 export async function createExpense(projectId: string, _prev: any, formData: FormData) {
   const session = await requireAuth()
@@ -18,6 +19,9 @@ export async function createExpense(projectId: string, _prev: any, formData: For
     paidByClient: raw.paidByClient === 'true',
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
+  if (MATERIAL_CATEGORY_SET.has(parsed.data.category)) {
+    return { error: 'Material expenses are managed in the Materials tab' }
+  }
 
   const project = await prisma.project.findFirst({ where: { id: projectId, userId: session.user.id } })
   if (!project) return { error: 'Project not found' }
@@ -28,10 +32,6 @@ export async function createExpense(projectId: string, _prev: any, formData: For
     vendorId,
     laborEntryId,
     contractorId,
-    materialEntryId,
-    materialMode,
-    materialDescription,
-    materialBillAmount,
     ...rest
   } = parsed.data
 
@@ -72,104 +72,6 @@ export async function createExpense(projectId: string, _prev: any, formData: For
     }
   }
 
-  const isMaterialCategory = MATERIAL_CATEGORIES.has(rest.category)
-  if (isMaterialCategory) {
-    const paymentAmount = rest.amount + (rest.taxAmount || 0)
-
-    if (materialMode === 'new') {
-      const description = materialDescription || rest.notes || vendorName || `${rest.category} purchase`
-      const billAmount = materialBillAmount && materialBillAmount > 0 ? materialBillAmount : paymentAmount
-
-      if (billAmount < paymentAmount) {
-        return { error: 'Material bill amount cannot be less than the payment amount' }
-      }
-
-      const material = await prisma.materialEntry.create({
-        data: {
-          description,
-          category: rest.category,
-          vendorName: vendorName || null,
-          billNumber: rest.billNumber || null,
-          billDate: new Date(date),
-          billAmount,
-          paidByClient: rest.paidByClient,
-          notes: rest.notes || null,
-          phaseId: phaseId || null,
-          vendorId: vendorId || null,
-          projectId,
-          payments: {
-            create: {
-              amount: paymentAmount,
-              date: new Date(date),
-              paymentMode: rest.paymentMode,
-              notes: rest.notes || null,
-            },
-          },
-        },
-      })
-
-      await prisma.activityLog.create({
-        data: {
-          action: 'created',
-          entityType: 'material',
-          entityId: material.id,
-          details: `Material entry added from Expenses: ${description} (Paid: ₹${paymentAmount.toLocaleString('en-IN')})`,
-          userId: session.user.id,
-          projectId,
-        },
-      })
-
-      revalidatePath(`/projects/${projectId}`)
-      revalidatePath(`/portal`)
-      revalidatePath(`/portal/${projectId}`)
-      return { success: true, materialEntryId: material.id }
-    }
-
-    if (!materialEntryId) {
-      return { error: 'Select an existing material with pending due' }
-    }
-
-    const material = await prisma.materialEntry.findFirst({
-      where: { id: materialEntryId, projectId },
-      include: { payments: { select: { amount: true } } },
-    })
-    if (!material) return { error: 'Material entry not found' }
-
-    const paid = material.payments.reduce((sum, payment) => sum + payment.amount, 0)
-    const due = Math.max(0, material.billAmount - paid)
-
-    if (due <= 0) return { error: 'Selected material has no pending due' }
-    if (paymentAmount > due) {
-      return { error: `Payment exceeds pending due of ₹${due.toLocaleString('en-IN')}` }
-    }
-
-    const payment = await prisma.materialPayment.create({
-      data: {
-        amount: paymentAmount,
-        date: new Date(date),
-        paymentMode: rest.paymentMode,
-        notes: rest.notes || rest.billNumber ? [rest.notes, rest.billNumber ? `Bill: ${rest.billNumber}` : ''].filter(Boolean).join(' · ') : null,
-        materialEntryId: material.id,
-      },
-    })
-
-    await prisma.activityLog.create({
-      data: {
-        action: 'payment_received',
-        entityType: 'material',
-        entityId: material.id,
-        details: `Material payment of ₹${paymentAmount.toLocaleString('en-IN')} added from Expenses for "${material.description}"`,
-        userId: session.user.id,
-        projectId,
-      },
-    })
-
-    revalidatePath(`/projects/${projectId}`)
-    revalidatePath(`/portal`)
-    revalidatePath(`/portal/${projectId}`)
-    return { success: true, materialPaymentId: payment.id }
-  }
-
   const expense = await prisma.expenseTransaction.create({
     data: {
       ...rest,
@@ -182,9 +84,9 @@ export async function createExpense(projectId: string, _prev: any, formData: For
     },
   })
 
-  // If linked to a labor entry, update the labor entry's advancePaid and paidByClient
+  // If linked to a labor entry, add this expense to its paid amount and sync paidByClient
   if (resolvedLaborEntryId) {
-    await recalcLaborPaid(resolvedLaborEntryId)
+    await adjustLaborPaid(resolvedLaborEntryId, isCountedExpense(expense) ? expense.amount : 0)
     await syncLaborPaidByClient(resolvedLaborEntryId)
   }
 
@@ -215,9 +117,22 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  // Get the old expense to check if laborEntryId changed
+  // Get the old expense to check category changes and labor linkage
   const oldExpense = await prisma.expenseTransaction.findUnique({ where: { id: expenseId } })
-  const oldLaborEntryId = oldExpense?.laborEntryId
+  if (!oldExpense) return { error: 'Expense not found' }
+  const oldLaborEntryId = oldExpense.laborEntryId
+
+  // Legacy material-category expenses stay in the Materials workflow, but
+  // remain editable there. New material expenses must use a MaterialEntry.
+  const isMaterialCategory = MATERIAL_CATEGORY_SET.has(parsed.data.category)
+  const wasMaterialCategory = MATERIAL_CATEGORY_SET.has(oldExpense.category)
+  if (isMaterialCategory !== wasMaterialCategory) {
+    return {
+      error: isMaterialCategory
+        ? 'Material expenses are managed in the Materials tab'
+        : 'Material expenses must stay in the Materials tab',
+    }
+  }
 
   const {
     date,
@@ -225,10 +140,6 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
     vendorId,
     laborEntryId,
     contractorId,
-    materialEntryId: _materialEntryId,
-    materialMode: _materialMode,
-    materialDescription: _materialDescription,
-    materialBillAmount: _materialBillAmount,
     ...rest
   } = parsed.data
 
@@ -266,7 +177,7 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
     }
   }
 
-  await prisma.expenseTransaction.update({
+  const updatedExpense = await prisma.expenseTransaction.update({
     where: { id: expenseId },
     data: {
       ...rest,
@@ -278,14 +189,21 @@ export async function updateExpense(expenseId: string, projectId: string, _prev:
     },
   })
 
-  // Recalc labor paid for both old and new labor entries
-  if (oldLaborEntryId) {
-    await recalcLaborPaid(oldLaborEntryId)
-    await syncLaborPaidByClient(oldLaborEntryId)
+  // Move only the delta this expense contributes, so hand-entered advances survive
+  const oldContribution = isCountedExpense(oldExpense) ? oldExpense.amount : 0
+  const newContribution = isCountedExpense(updatedExpense) ? updatedExpense.amount : 0
+
+  if (oldLaborEntryId && oldLaborEntryId === resolvedLaborEntryId) {
+    await adjustLaborPaid(oldLaborEntryId, newContribution - oldContribution)
+  } else {
+    if (oldLaborEntryId) await adjustLaborPaid(oldLaborEntryId, -oldContribution)
+    if (resolvedLaborEntryId) await adjustLaborPaid(resolvedLaborEntryId, newContribution)
   }
-  if (resolvedLaborEntryId && resolvedLaborEntryId !== oldLaborEntryId) {
-    await recalcLaborPaid(resolvedLaborEntryId)
-    await syncLaborPaidByClient(resolvedLaborEntryId)
+
+  for (const laborEntryId of new Set(
+    [oldLaborEntryId, resolvedLaborEntryId].filter((id): id is string => !!id)
+  )) {
+    await syncLaborPaidByClient(laborEntryId)
   }
 
   revalidatePath(`/projects/${projectId}`)
@@ -299,25 +217,31 @@ export async function deleteExpense(expenseId: string, projectId: string) {
 
   await prisma.expenseTransaction.delete({ where: { id: expenseId } })
 
-  // Recalc labor paid if was linked
+  // Remove only what this expense contributed; hand-entered advances stay intact
   if (laborEntryId) {
-    await recalcLaborPaid(laborEntryId)
+    await adjustLaborPaid(laborEntryId, expense && isCountedExpense(expense) ? -expense.amount : 0)
     await syncLaborPaidByClient(laborEntryId)
   }
 
   revalidatePath(`/projects/${projectId}`)
 }
 
-/** Recalculate advancePaid on a labor entry from linked expense payments */
-async function recalcLaborPaid(laborEntryId: string) {
-  const linkedExpenses = await prisma.expenseTransaction.findMany({
-    where: { laborEntryId, approvalStatus: 'approved' },
-    select: { amount: true },
+/**
+ * Adjust a labor entry's advancePaid by a delta instead of recomputing it from
+ * linked expenses. Recomputing used to overwrite advances the owner recorded by
+ * hand (entries with no linked expense rows), silently losing money.
+ * Never drops below zero, since a negative advance is meaningless.
+ */
+async function adjustLaborPaid(laborEntryId: string, delta: number) {
+  if (!laborEntryId || !Number.isFinite(delta) || delta === 0) return
+  const entry = await prisma.laborEntry.findUnique({
+    where: { id: laborEntryId },
+    select: { advancePaid: true },
   })
-  const totalPaid = linkedExpenses.reduce((sum, e) => sum + e.amount, 0)
+  if (!entry) return
   await prisma.laborEntry.update({
     where: { id: laborEntryId },
-    data: { advancePaid: totalPaid },
+    data: { advancePaid: Math.max(0, entry.advancePaid + delta) },
   })
 }
 
@@ -340,13 +264,13 @@ async function syncLaborPaidByClient(laborEntryId: string) {
 const clientExpenseSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   amount: z.coerce.number().positive('Amount must be positive'),
-  category: z.string().min(1, 'Category is required'),
-  vendorName: z.string().optional(),
-  vendorId: z.string().optional(),
-  contractorId: z.string().optional(),
-  paymentMode: z.string().min(1, 'Payment mode is required'),
+  category: z.string().trim().min(1, 'Category is required'),
+  vendorName: z.string().trim().optional(),
+  vendorId: z.string().trim().optional(),
+  contractorId: z.string().trim().optional(),
+  paymentMode: z.string().trim().min(1, 'Payment mode is required'),
   taxAmount: z.coerce.number().min(0).default(0),
-  notes: z.string().optional(),
+  notes: z.string().trim().optional(),
 })
 
 export async function submitClientExpense(projectId: string, _prev: any, formData: FormData) {
@@ -420,12 +344,18 @@ export async function approveExpense(expenseId: string) {
   })
   if (!expense || expense.project.userId !== session.user.id) return { error: 'Not found' }
 
+  const wasCounted = isCountedExpense(expense)
+
   await prisma.expenseTransaction.update({
     where: { id: expenseId },
     data: { approvalStatus: 'approved' },
   })
 
-  if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
+  // Only add the amount once — re-approving an approved expense must not double count
+  if (expense.laborEntryId) {
+    if (!wasCounted) await adjustLaborPaid(expense.laborEntryId, expense.amount)
+    await syncLaborPaidByClient(expense.laborEntryId)
+  }
 
   await prisma.activityLog.create({
     data: {
@@ -462,12 +392,18 @@ export async function rejectExpense(expenseId: string) {
   })
   if (!expense || expense.project.userId !== session.user.id) return { error: 'Not found' }
 
+  const wasCounted = isCountedExpense(expense)
+
   await prisma.expenseTransaction.update({
     where: { id: expenseId },
     data: { approvalStatus: 'rejected' },
   })
 
-  if (expense.laborEntryId) await recalcLaborPaid(expense.laborEntryId)
+  // Only remove the amount if it was actually counted before
+  if (expense.laborEntryId) {
+    if (wasCounted) await adjustLaborPaid(expense.laborEntryId, -expense.amount)
+    await syncLaborPaidByClient(expense.laborEntryId)
+  }
 
   await prisma.activityLog.create({
     data: {

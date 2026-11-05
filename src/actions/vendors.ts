@@ -6,13 +6,13 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 const vendorSchema = z.object({
-  name: z.string().min(1, 'Vendor name is required'),
-  phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  address: z.string().optional(),
-  gstNumber: z.string().optional(),
-  category: z.string().optional(),
-  notes: z.string().optional(),
+  name: z.string().trim().min(1, 'Vendor name is required'),
+  phone: z.string().trim().optional(),
+  email: z.string().trim().email().optional().or(z.literal('')),
+  address: z.string().trim().optional(),
+  gstNumber: z.string().trim().optional(),
+  category: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
 })
 
 export async function getVendors() {

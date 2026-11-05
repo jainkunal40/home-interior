@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatINR } from '@/lib/currency'
+import { billableExpenses, computeProjectFinance, expenseAmount } from '@/lib/finance'
 import { getLabelForValue, EXPENSE_CATEGORIES, TRADE_TYPES } from '@/lib/utils'
 import { Download, TrendingUp, TrendingDown, AlertTriangle, PieChart, FileSpreadsheet, FileText } from 'lucide-react'
 
@@ -17,19 +18,17 @@ interface ReportsTabProps {
 }
 
 export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, netProfit, clientPaidTotal = 0, pendingApprovalTotal = 0 }: ReportsTabProps) {
+  const finance = computeProjectFinance(project)
   const totalCost = totalExpenses + totalLabor
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : '0.0'
   const budgetUsed = project.budget > 0 ? ((totalCost / project.budget) * 100).toFixed(1) : 'N/A'
   const budgetRemaining = project.budget > 0 ? project.budget - totalCost : 0
 
-  // Category breakdown (exclude labor-linked and unapproved)
-  // Category breakdown (approved non-labor expenses)
+  // Category breakdown (approved non-labor expenses + material payments)
   const categoryBreakdown: Record<string, number> = {}
-  for (const exp of project.expenseTransactions) {
-    if (exp.laborEntryId) continue
-    if (exp.approvalStatus === 'pending' || exp.approvalStatus === 'rejected') continue
+  for (const exp of billableExpenses(project)) {
     const cat = exp.category || 'misc'
-    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
+    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + expenseAmount(exp)
   }
   // Add material entries (paid amounts) to category breakdown
   for (const entry of (project.materialEntries ?? [])) {
@@ -49,18 +48,8 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
   }
   const sortedTrades = Object.entries(tradeBreakdown).sort((a, b) => b[1] - a[1])
 
-  // Pending receivables (project budget or expected - received)
-  const pendingReceivable = project.budget > 0 ? Math.max(0, project.budget - totalIncome) : 0
-
-  // Pending payables (worker dues + unpaid material bills)
-  const laborDues = project.laborEntries.reduce(
-    (s: number, l: any) => s + Math.max(0, l.totalAmount - l.advancePaid), 0
-  )
-  const materialDues = (project.materialEntries ?? []).reduce((s: number, e: any) => {
-    const paid = (e.payments ?? []).reduce((ps: number, p: any) => ps + p.amount, 0)
-    return s + Math.max(0, e.billAmount - paid)
-  }, 0)
-  const pendingPayable = laborDues + materialDues
+  const pendingReceivable = finance.pendingReceivable
+  const pendingPayable = finance.pendingPayables
 
   // Monthly breakdown
   const monthlyIncome: Record<string, number> = {}
@@ -69,15 +58,14 @@ export function ReportsTab({ project, totalIncome, totalExpenses, totalLabor, ne
     const key = new Date(t.date).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
     monthlyIncome[key] = (monthlyIncome[key] || 0) + t.amount
   }
-  for (const t of project.expenseTransactions) {
-    if (t.laborEntryId) continue
-    const key = new Date(t.date).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
-    monthlyExpense[key] = (monthlyExpense[key] || 0) + t.amount + (t.taxAmount || 0)
+  for (const t of billableExpenses(project)) {
+    const key = new Date(t.date ?? 0).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
+    monthlyExpense[key] = (monthlyExpense[key] || 0) + expenseAmount(t)
   }
   // Add material payments to monthly expense breakdown
   for (const entry of (project.materialEntries ?? [])) {
     for (const payment of (entry.payments ?? [])) {
-      const key = new Date(payment.date).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
+      const key = new Date(payment.date ?? 0).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
       monthlyExpense[key] = (monthlyExpense[key] || 0) + payment.amount
     }
   }

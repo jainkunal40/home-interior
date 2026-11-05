@@ -16,6 +16,7 @@
  */
 
 import { prisma } from './prisma'
+import { computeProjectFinance } from './finance'
 import { revalidatePath } from 'next/cache'
 import { notifyExpenseApprovalStatus } from './notifications'
 
@@ -252,10 +253,17 @@ async function buildBalanceSummary(userId: string): Promise<string> {
     include: {
       incomeTransactions: { select: { amount: true } },
       expenseTransactions: {
-        where: { approvalStatus: { not: 'rejected' }, laborEntryId: null },
-        select: { amount: true, taxAmount: true, paidByClient: true },
+        where: { laborEntryId: null },
+        select: { amount: true, taxAmount: true, paidByClient: true, approvalStatus: true },
       },
       laborEntries: { select: { totalAmount: true, paidByClient: true } },
+      materialEntries: {
+        select: {
+          billAmount: true,
+          paidByClient: true,
+          payments: { select: { amount: true } },
+        },
+      },
     },
     orderBy: { updatedAt: 'desc' },
     take: 8,
@@ -265,14 +273,9 @@ async function buildBalanceSummary(userId: string): Promise<string> {
 
   const lines = ['📊 *Project Balances*\n']
   for (const p of projects) {
-    const income = p.incomeTransactions.reduce((s, t) => s + t.amount, 0)
-    const ownerExp = p.expenseTransactions
-      .filter((t) => !t.paidByClient)
-      .reduce((s, t) => s + t.amount + t.taxAmount, 0)
-    const ownerLab = p.laborEntries
-      .filter((t) => !t.paidByClient)
-      .reduce((s, t) => s + t.totalAmount, 0)
-    const profit = income - ownerExp - ownerLab
+    const finance = computeProjectFinance(p)
+    const income = finance.income
+    const profit = finance.netProfit
     const sign = profit >= 0 ? '+' : ''
     lines.push(`${profit >= 0 ? '🟢' : '🔴'} *${p.name}*`)
     lines.push(`  Income: ${fmt(income)} · P&L: ${sign}${fmt(profit)}`)

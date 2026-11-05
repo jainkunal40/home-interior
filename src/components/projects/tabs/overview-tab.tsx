@@ -3,6 +3,7 @@
 import { useState, useEffect, useActionState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatINR } from '@/lib/currency'
+import { billableExpenses, expenseAmount, laborDueTotal } from '@/lib/finance'
 import { Badge } from '@/components/ui/badge'
 import { getLabelForValue, EXPENSE_CATEGORIES, MILESTONE_STATUSES, PROJECT_STATUSES } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -49,19 +50,24 @@ export function OverviewTab({ project, totalIncome, totalExpenses, totalLabor, n
   const isOverBudget = budgetUsed > project.budget && project.budget > 0
   const profitMargin = totalIncome > 0 ? Math.round((netProfit / totalIncome) * 100) : 0
 
-  // Category breakdown (exclude labor-linked and unapproved)
+  // Category breakdown (approved non-labor expenses + material payments)
   const categoryBreakdown: Record<string, number> = {}
-  for (const exp of project.expenseTransactions) {
-    if (exp.laborEntryId) continue
-    if (exp.approvalStatus === 'pending' || exp.approvalStatus === 'rejected') continue
+  for (const exp of billableExpenses(project)) {
     const cat = exp.category || 'misc'
-    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + exp.amount + (exp.taxAmount || 0)
+    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + expenseAmount(exp)
+  }
+  for (const entry of (project.materialEntries ?? [])) {
+    const paid = (entry.payments ?? []).reduce((s: number, p: any) => s + p.amount, 0)
+    if (paid > 0) {
+      const cat = entry.category || 'materials'
+      categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + paid
+    }
   }
   const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])
 
   // Pending labor
   const pendingLabor = project.laborEntries.filter((l: any) => l.status === 'pending_payment' || l.status === 'ongoing')
-  const pendingAmount = pendingLabor.reduce((s: number, l: any) => s + (l.totalAmount - l.advancePaid), 0)
+  const pendingAmount = laborDueTotal(pendingLabor)
 
   return (
     <div className="space-y-4">
