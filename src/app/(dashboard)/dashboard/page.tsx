@@ -1,49 +1,15 @@
 import { getProjects } from '@/actions/projects'
-import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/session'
-import { formatINR, formatINRCompact } from '@/lib/currency'
+import { formatINRCompact } from '@/lib/currency'
 import { getStatusColor, getLabelForValue, PROJECT_STATUSES } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { SummaryCard } from '@/components/ui/summary-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
-import {
-  TrendingUp,
-  Wallet,
-  IndianRupee,
-  FolderOpen,
-  Plus,
-  ArrowRight,
-  AlertTriangle,
-  Clock,
-} from 'lucide-react'
+import { FolderOpen, Plus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import { addDays, differenceInCalendarDays } from 'date-fns'
 
 export default async function DashboardPage() {
-  const session = await requireAuth()
   const projects = await getProjects()
-
-  const now = new Date()
-  const weekFromNow = addDays(now, 7)
-  const upcomingMilestones = await prisma.milestone.findMany({
-    where: {
-      project: { userId: session.user.id },
-      status: { not: 'completed' },
-      dueDate: { gte: now, lte: weekFromNow },
-    },
-    include: { project: { select: { id: true, name: true } } },
-    orderBy: { dueDate: 'asc' },
-    take: 5,
-  })
-
-  // Compute dashboard summary
-  let totalIncome = 0
-  let totalSpent = 0
-  let totalOwnerExpenses = 0
-  let totalOwnerLabor = 0
-  let activeCount = 0
 
   const projectSummaries = projects.map((p: any) => {
     const income = p.incomeTransactions.reduce((s: number, t: any) => s + t.amount, 0)
@@ -54,10 +20,6 @@ export default async function DashboardPage() {
       .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
     const materials = (p.materialEntries ?? [])
       .reduce((s: number, entry: any) => s + (entry.payments ?? []).reduce((ps: number, payment: any) => ps + payment.amount, 0), 0)
-    const unpaidMaterialBills = (p.materialEntries ?? []).filter((entry: any) => {
-      const paid = (entry.payments ?? []).reduce((ps: number, payment: any) => ps + payment.amount, 0)
-      return entry.billAmount > paid
-    }).length
     const labor = p.laborEntries
       .reduce((s: number, t: any) => s + t.totalAmount, 0)
     const spent = expenses + materials + labor
@@ -73,33 +35,11 @@ export default async function DashboardPage() {
       .reduce((s: number, t: any) => s + t.totalAmount, 0)
     const profit = income - ownerExpenses - ownerLabor
     const pendingApprovalCount = p.expenseTransactions.filter((t: any) => t.approvalStatus === 'pending').length
-    const pendingApprovalTotal = p.expenseTransactions
-      .filter((t: any) => t.approvalStatus === 'pending')
-      .reduce((s: number, t: any) => s + t.amount + t.taxAmount, 0)
 
-    totalIncome += income
-    totalSpent += spent
-    totalOwnerExpenses += ownerExpenses
-    totalOwnerLabor += ownerLabor
-    if (p.status === 'active') activeCount++
-
-    return { ...p, income, expenses, materials, labor, spent, profit, pendingApprovalCount, pendingApprovalTotal, unpaidMaterialBills }
+    return { ...p, income, spent, profit, pendingApprovalCount }
   })
 
-  const totalProfit = totalIncome - totalOwnerExpenses - totalOwnerLabor
-  const totalFromMyPocket = totalOwnerExpenses + totalOwnerLabor
-  const overBudgetProjects = projectSummaries.filter((p: any) => p.budget > 0 && p.spent > p.budget)
-  const smartAlerts = projectSummaries.flatMap((p: any) => {
-    const alerts: { href: string; text: string; tone: 'red' | 'amber' | 'blue' }[] = []
-    if (p.unpaidMaterialBills > 0) alerts.push({ href: `/projects/${p.id}?tab=payables`, text: `${p.name}: ${p.unpaidMaterialBills} material bill${p.unpaidMaterialBills !== 1 ? 's' : ''} unpaid`, tone: 'amber' })
-    if (p.budget > 0) {
-      const used = Math.round((p.spent / p.budget) * 100)
-      if (used >= 80) alerts.push({ href: `/projects/${p.id}?tab=forecast`, text: `${p.name}: ${used}% budget used`, tone: used > 100 ? 'red' : 'amber' })
-    }
-    if (p.pendingApprovalTotal > 0) alerts.push({ href: `/projects/${p.id}?tab=expenses`, text: `${p.name}: ${formatINRCompact(p.pendingApprovalTotal)} pending approval`, tone: 'blue' })
-    if (p.status === 'active' && differenceInCalendarDays(now, new Date(p.updatedAt)) > 10) alerts.push({ href: `/projects/${p.id}`, text: `${p.name}: no progress update in ${differenceInCalendarDays(now, new Date(p.updatedAt))} days`, tone: 'amber' })
-    return alerts
-  }).slice(0, 6)
+  const activeCount = projectSummaries.filter((p: any) => p.status === 'active').length
 
   return (
     <div className="space-y-6">
@@ -118,95 +58,6 @@ export default async function DashboardPage() {
           </Button>
         </Link>
       </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <SummaryCard
-          label="Total Income"
-          value={totalIncome}
-          icon={<IndianRupee className="w-4 h-4" />}
-          trend="up"
-        />
-        <SummaryCard
-          label="Total Spent"
-          value={totalSpent}
-          icon={<Wallet className="w-4 h-4" />}
-          trend="down"
-        />
-        <SummaryCard
-          label="From My Pocket"
-          value={totalFromMyPocket}
-          icon={<Wallet className="w-4 h-4" />}
-          trend="down"
-        />
-        <SummaryCard
-          label="Net Profit"
-          value={totalProfit}
-          icon={<TrendingUp className="w-4 h-4" />}
-          trend={totalProfit >= 0 ? 'up' : 'down'}
-        />
-      </div>
-
-      {smartAlerts.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <h3 className="text-sm font-semibold text-gray-700">Smart Alerts</h3>
-            </div>
-            <div className="space-y-1.5">
-              {smartAlerts.map((alert, i) => (
-                <Link key={`${alert.href}-${i}`} href={alert.href} className="block text-sm text-gray-700 hover:bg-gray-50 rounded px-1 -mx-1">
-                  {alert.text}
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Budget Alerts */}
-      {overBudgetProjects.length > 0 && (
-        <Card className="border-red-200 bg-red-50/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-red-500" />
-              <h3 className="text-sm font-semibold text-red-700">Over Budget</h3>
-            </div>
-            <div className="space-y-1.5">
-              {overBudgetProjects.map((p: any) => {
-                const overBy = p.spent - p.budget
-                return (
-                  <Link key={p.id} href={`/projects/${p.id}`} className="flex justify-between items-center text-sm hover:bg-red-100/50 rounded px-1 -mx-1">
-                    <span className="text-gray-700 truncate">{p.name}</span>
-                    <span className="text-red-600 font-medium shrink-0 ml-2">+{formatINRCompact(overBy)}</span>
-                  </Link>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Due This Week */}
-      {upcomingMilestones.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-4 h-4 text-amber-500" />
-              <h3 className="text-sm font-semibold text-amber-700">Due This Week</h3>
-            </div>
-            <div className="space-y-1.5">
-              {upcomingMilestones.map((m: any) => (
-                <Link key={m.id} href={`/projects/${m.project.id}?tab=milestones`} className="flex justify-between items-center text-sm hover:bg-amber-100/50 rounded px-1 -mx-1">
-                  <span className="text-gray-700 truncate">{m.title}</span>
-                  <span className="text-amber-600 text-xs shrink-0 ml-2">{m.project.name}</span>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Project List */}
       {projectSummaries.length === 0 ? (
